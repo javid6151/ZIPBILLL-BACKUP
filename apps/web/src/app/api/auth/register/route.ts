@@ -261,9 +261,11 @@ export async function POST(req: NextRequest) {
       return { tenant, profile, user, registration };
     });
 
-    try {
-      await seedTenantStarterData(result.tenant.id, businessType as any, tableCount ? Number(tableCount) : 8);
-    } catch {}
+    if (tableCount && Number(tableCount) > 0) {
+      try {
+        await seedTenantStarterData(result.tenant.id, businessType as any, Number(tableCount));
+      } catch {}
+    }
 
     return NextResponse.json({
       success: true,

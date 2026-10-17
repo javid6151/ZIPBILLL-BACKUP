@@ -120,30 +120,7 @@ export async function GET(req: NextRequest) {
       orderBy: { sortOrder: 'asc' },
     });
 
-    if (tables.length === 0 || categories.length === 0) {
-      try {
-        await seedTenantStarterData(activeTenantId, tenant.businessType || 'RESTAURANT');
-        tables = await prisma.table.findMany({
-          where: { tenantId: activeTenantId },
-          orderBy: { sortOrder: 'asc' },
-        });
-        categories = await prisma.category.findMany({
-          where: { tenantId: activeTenantId },
-          include: {
-            menuItems: {
-              where: { isAvailable: true },
-              include: {
-                variants: true,
-              },
-              orderBy: [{ sortOrder: 'asc' }, { basePrice: 'asc' }],
-            },
-          },
-          orderBy: { sortOrder: 'asc' },
-        });
-      } catch (seedErr) {
-        console.warn('Auto-seed starter data warning:', seedErr);
-      }
-    }
+    // Do not auto-seed dummy items. New accounts start cleanly at 0 items.
 
     // 4. Fetch All Menu Items Flat (Ordered by Course Rank, Sort Order, Price)
     const menuItems = await prisma.menuItem.findMany({

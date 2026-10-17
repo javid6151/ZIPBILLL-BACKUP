@@ -72,14 +72,16 @@ export async function POST(req: NextRequest) {
         ? '/dashboard'
         : `/onboarding?tenantId=${user.tenant.id}&email=${encodeURIComponent(user.email)}`;
 
-      // Seed starter tables and menu if empty or requested custom table count
-      try {
-        await seedTenantStarterData(
-          user.tenant.id,
-          user.tenant.businessType || 'RESTAURANT',
-          tableCount ? Number(tableCount) : undefined
-        );
-      } catch {}
+      // Only configure tables if custom table count was explicitly requested
+      if (tableCount && Number(tableCount) > 0) {
+        try {
+          await seedTenantStarterData(
+            user.tenant.id,
+            user.tenant.businessType || 'RESTAURANT',
+            Number(tableCount)
+          );
+        } catch {}
+      }
 
       const response = NextResponse.json({
         success: true,
@@ -334,14 +336,16 @@ export async function POST(req: NextRequest) {
       console.warn('RestaurantMember sync skipped:', e.message);
     }
 
-    try {
-      await seedTenantStarterData(
-        result.tenant.id,
-        result.tenant.businessType || 'RESTAURANT',
-        tableCount ? Number(tableCount) : undefined
-      );
-    } catch (e: any) {
-      console.warn('Starter data seeding skipped:', e.message);
+    if (tableCount && Number(tableCount) > 0) {
+      try {
+        await seedTenantStarterData(
+          result.tenant.id,
+          result.tenant.businessType || 'RESTAURANT',
+          Number(tableCount)
+        );
+      } catch (e: any) {
+        console.warn('Starter tables setup skipped:', e.message);
+      }
     }
 
     const response = NextResponse.json({

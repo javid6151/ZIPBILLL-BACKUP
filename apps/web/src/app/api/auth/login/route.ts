@@ -112,16 +112,16 @@ export async function POST(req: NextRequest) {
       data: { lastLoginAt: new Date() },
     });
 
-    // Ensure tables and menu items are loaded/seeded according to requested table count
-    if (user.tenant) {
+    // Only configure custom tables if tableCount was explicitly passed in
+    if (user.tenant && tableCount && Number(tableCount) > 0) {
       try {
         await seedTenantStarterData(
           user.tenant.id,
           user.tenant.businessType || 'RESTAURANT',
-          tableCount ? Number(tableCount) : undefined
+          Number(tableCount)
         );
       } catch (seedErr) {
-        console.warn('Login starter data seed warning:', seedErr);
+        console.warn('Login starter tables warning:', seedErr);
       }
     }
 
