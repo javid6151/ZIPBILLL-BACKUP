@@ -228,7 +228,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (data.profile) {
           setProfileState(data.profile);
         }
-        if (data.modules && Array.isArray(data.modules) && data.modules.length > 0) {
+        if (data.modules && Array.isArray(data.modules)) {
           setEnabledModulesState(data.modules);
           if (typeof window !== 'undefined') {
             localStorage.setItem('saas_active_modules', JSON.stringify(data.modules));
@@ -324,15 +324,60 @@ export function AppProvider({ children }: { children: ReactNode }) {
     refreshPendingCount();
   }, []);
 
-  const toggleModule = (token: ModuleToken) => {
+  const toggleModule = (token: ModuleToken | string) => {
     setEnabledModulesState((prev: ModuleToken[]) => {
-      const isCurrentlyEnabled = (prev || []).includes(token);
-      const next = isCurrentlyEnabled ? prev.filter((t: ModuleToken) => t !== token) : [...(prev || []), token];
+      const lowerToken = String(token).toLowerCase().trim();
+
+      // Related sub-tokens to clean or activate together
+      const SUB_MAP: Record<string, string[]> = {
+        pos: ['pos.dine_in', 'pos.quick_counter', 'pos.takeaway', 'pos.delivery'],
+        tables: ['operations.tables'],
+        kitchen: ['operations.kitchen_kds', 'operations.kot_printing'],
+        qr: ['qr.table_ordering', 'qr.digital_menu', 'qr.table_pay'],
+        billing: ['billing.thermal_receipts', 'billing.split_payment', 'billing.discounts', 'billing.tax_gst'],
+        payments: ['payments.upi_qr'],
+        inventory: ['inventory.raw_materials', 'inventory.recipes_bom'],
+        customers: ['crm.customers', 'crm.loyalty'],
+        staff: ['staff.shared_access', 'staff.device_mgmt'],
+        expenses: ['finance.expenses'],
+        printers: ['hardware.thermal_printers', 'operations.kot_printing'],
+        reports: ['reports.sales_analytics', 'reports.staff_activity'],
+        menu: ['catalog.modifiers_variants', 'ai_menu_import', 'ai.menu_import'],
+        orders: [],
+      };
+
+      const subs = SUB_MAP[lowerToken] || [];
+      const allRelated = new Set([lowerToken, ...subs]);
+
+      // Check if currently enabled: either exact match, or in subs, or starts with lowerToken + '.'
+      const isCurrentlyEnabled = (prev || []).some((t) => {
+        const l = String(t).toLowerCase().trim();
+        return l === lowerToken || subs.includes(l) || l.startsWith(lowerToken + '.');
+      });
+
+      let next: ModuleToken[];
+      if (isCurrentlyEnabled) {
+        // Disabling: remove this token, its sub-tokens, and anything starting with lowerToken + '.'
+        next = (prev || []).filter((t) => {
+          const l = String(t).toLowerCase().trim();
+          return !allRelated.has(l) && !l.startsWith(lowerToken + '.');
+        });
+      } else {
+        // Enabling: add this token and its sub-tokens (cleanly deduplicated)
+        const currentLower = new Set((prev || []).map((t) => String(t).toLowerCase().trim()));
+        currentLower.add(lowerToken);
+        for (const s of subs) {
+          currentLower.add(s);
+        }
+        next = Array.from(currentLower) as ModuleToken[];
+      }
+
       if (typeof window !== 'undefined') {
         localStorage.setItem('saas_active_modules', JSON.stringify(next));
       }
+
       // Asynchronously persist to backend database
-      const activeTenantId = profile.tenantId || session.tenantId;
+      const activeTenantId = profile.tenantId || session.tenantId || currentTenant?.id;
       if (activeTenantId) {
         fetch('/api/tenant/modules', {
           method: 'POST',
@@ -344,6 +389,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           }),
         }).catch((err) => console.error('Failed to persist module state to DB:', err));
       }
+
       return next;
     });
   };

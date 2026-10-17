@@ -197,9 +197,13 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
   const isModuleDisabledForCurrentRoute = Boolean(
     requiredSectionModules &&
     requiredSectionModules.length > 0 &&
-    !requiredSectionModules.some((token) =>
-      effectiveModules.some((m) => String(m).toLowerCase() === token.toLowerCase())
-    )
+    !requiredSectionModules.some((token) => {
+      const t = token.toLowerCase().trim();
+      return effectiveModules.some((m) => {
+        const em = String(m).toLowerCase().trim();
+        return em === t || em.startsWith(t + '.') || t.startsWith(em + '.');
+      });
+    })
   );
 
   // Check if unauthenticated with hydration grace period & Supabase check
