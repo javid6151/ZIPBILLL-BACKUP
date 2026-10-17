@@ -83,12 +83,17 @@ async function main() {
   // 3. Seed Platform Super Admin User
   console.log('Seeding super admin user...');
   await prisma.user.upsert({
-    where: { email: 'admin@platform.pos' },
-    update: {},
+    where: { email: 'tarunuttupulusu@gmail.com' },
+    update: {
+      passwordHash: 'tarun2314638',
+      fullName: 'Tarun (Super Admin)',
+      roleType: 'SUPER_ADMIN',
+      isActive: true,
+    },
     create: {
-      email: 'admin@platform.pos',
-      passwordHash: 'ChangeMeInProduction123!',
-      fullName: 'Vikram Malhotra (Super Admin)',
+      email: 'tarunuttupulusu@gmail.com',
+      passwordHash: 'tarun2314638',
+      fullName: 'Tarun (Super Admin)',
       roleType: 'SUPER_ADMIN',
       isActive: true,
     },

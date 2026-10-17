@@ -15,7 +15,8 @@
     "check-types": "tsc --noEmit -p apps/web && tsc --noEmit -p apps/admin",
     "db:generate": "npm run generate --workspace=packages/database",
     "db:push": "npm run push --workspace=packages/database",
-    "db:seed": "npm run seed --workspace=packages/database"
+    "db:seed": "npm run seed --workspace=packages/database",
+    "db:clean": "npm run clean --workspace=packages/database"
   },
   "keywords": [
     "restaurant-pos",

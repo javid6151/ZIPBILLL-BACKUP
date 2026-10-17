@@ -87,10 +87,8 @@ export async function POST(req: NextRequest) {
       }
 
       // 3. Tenant is APPROVED by administrator:
-      // Check whether user has completed the Setup Wizard
-      const targetRedirect = hasCompletedOnboarding
-        ? '/dashboard'
-        : `/onboarding?tenantId=${user.tenant.id}&email=${encodeURIComponent(user.email)}`;
+      // Tenant is approved - always direct to dashboard, never to setup wizard
+      const targetRedirect = '/dashboard';
 
       // Only configure tables if custom table count was explicitly requested
       if (tableCount && Number(tableCount) > 0) {

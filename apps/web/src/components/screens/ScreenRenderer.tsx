@@ -308,7 +308,7 @@ function renderScreenContent(currentScreen: ScreenDefinition, onNav?: (id: strin
         <div className="space-y-3">
           <input
             type="email"
-            defaultValue="admin@platform.pos"
+            defaultValue="tarunuttupulusu@gmail.com"
             className="w-full bg-surfaceElevated border border-border rounded-xl px-3.5 py-2.5 text-xs text-white outline-none"
           />
           <input

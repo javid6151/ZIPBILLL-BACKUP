@@ -131,17 +131,17 @@ export default function AdminLoginPage() {
 
       {/* LOGIN CARD */}
       <div className="w-full max-w-md bg-surface p-8 sm:p-9 rounded-card border border-border shadow-sm space-y-6">
-        {/* Quick Demo Credentials Autofill */}
+        {/* Super Admin Credentials Autofill */}
         <div className="p-3 bg-orange-50/80 rounded-lg border border-orange-200/90 flex items-center justify-between text-xs">
           <div>
-            <p className="font-semibold text-heading">Demo Super Admin</p>
-            <p className="text-[11px] text-secondary font-mono">admin@platform.pos</p>
+            <p className="font-semibold text-heading">Super Admin</p>
+            <p className="text-[11px] text-secondary font-mono">tarunuttupulusu@gmail.com</p>
           </div>
           <button
             type="button"
             onClick={() => {
-              setEmail('admin@platform.pos');
-              setPassword('ChangeMeInProduction123!');
+              setEmail('tarunuttupulusu@gmail.com');
+              setPassword('tarun2314638');
             }}
             className="px-2.5 py-1 bg-white border border-orange-300 rounded text-primary font-semibold text-[11px] hover:bg-orange-50 transition shadow-xs"
           >

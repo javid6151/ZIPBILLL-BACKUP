@@ -332,13 +332,13 @@ export default function SuperAdminPortalPage() {
   const [globalSearch, setGlobalSearch] = useState('');
   const [notification, setNotification] = useState<string | null>(null);
 
-  // Application Data States
-  const [registrations, setRegistrations] = useState<RegistrationReq[]>(SEED_REGISTRATIONS);
-  const [restaurants, setRestaurants] = useState<RestaurantTenant[]>(SEED_RESTAURANTS);
-  const [users, setUsers] = useState<PlatformUser[]>(SEED_USERS);
-  const [requests, setRequests] = useState<RequestItem[]>(SEED_REQUESTS);
-  const [tickets, setTickets] = useState<SupportTicket[]>(SEED_TICKETS);
-  const [auditLogs, setAuditLogs] = useState<AuditRecord[]>(SEED_AUDIT_LOGS);
+  // Application Data States (Starts clean, populated from PostgreSQL)
+  const [registrations, setRegistrations] = useState<RegistrationReq[]>([]);
+  const [restaurants, setRestaurants] = useState<RestaurantTenant[]>([]);
+  const [users, setUsers] = useState<PlatformUser[]>([]);
+  const [requests, setRequests] = useState<RequestItem[]>([]);
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditRecord[]>([]);
 
   // Drilldown Modal States
   const [selectedRegistration, setSelectedRegistration] = useState<RegistrationReq | null>(null);
@@ -396,7 +396,7 @@ export default function SuperAdminPortalPage() {
           fetch('/api/admin/audit-logs').then((r) => r.json()).catch(() => ({})),
         ]);
 
-        if (regRes?.requests?.length) {
+        if (regRes && Array.isArray(regRes.requests)) {
           setRegistrations(
             regRes.requests.map((r: any) => ({
               id: r.id,
@@ -431,8 +431,10 @@ export default function SuperAdminPortalPage() {
               printerConfig: r.printerConfig || null,
             }))
           );
+        } else {
+          setRegistrations([]);
         }
-        if (tenRes?.tenants?.length) {
+        if (tenRes && Array.isArray(tenRes.tenants)) {
           setRestaurants(
             tenRes.tenants.map((t: any) => ({
               id: t.id,
@@ -451,6 +453,8 @@ export default function SuperAdminPortalPage() {
               createdAt: new Date(t.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
             }))
           );
+        } else {
+          setRestaurants([]);
         }
         if (logRes?.logs?.length) {
           setAuditLogs(
@@ -912,7 +916,14 @@ export default function SuperAdminPortalPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-borderLight">
-                    {registrations.map((reg) => (
+                    {registrations.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-5 py-8 text-center text-xs text-muted">
+                          No pending registration requests at this time.
+                        </td>
+                      </tr>
+                    ) : (
+                      registrations.map((reg) => (
                       <tr key={reg.id} className="hover:bg-surfaceMuted/50 transition">
                         <td className="px-5 py-3.5">
                           <div className="font-semibold text-heading">{reg.restaurantName}</div>
@@ -965,7 +976,7 @@ export default function SuperAdminPortalPage() {
                           )}
                         </td>
                       </tr>
-                    ))}
+                    )))}
                   </tbody>
                 </table>
               </div>
@@ -992,7 +1003,12 @@ export default function SuperAdminPortalPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {restaurants.map((t) => (
+                {restaurants.length === 0 ? (
+                  <div className="col-span-full card p-8 text-center text-xs text-muted">
+                    No registered restaurant tenants yet. New restaurants will appear here once approved.
+                  </div>
+                ) : (
+                  restaurants.map((t) => (
                   <div key={t.id} className="card p-5 space-y-4 hover:border-primary/40 transition">
                     <div className="flex items-start justify-between">
                       <div>
@@ -1043,7 +1059,7 @@ export default function SuperAdminPortalPage() {
                       </div>
                     </div>
                   </div>
-                ))}
+                )))}
               </div>
             </div>
           )}

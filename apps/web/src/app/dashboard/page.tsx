@@ -104,31 +104,19 @@ function DashboardContent() {
   } = useApp();
 
   // Guard: If restaurant tenant is pending or onboarding wizard not completed, forward to wizard or approval
-  const isPending = (currentTenant as any)?.status === 'PENDING' || (profile as any)?.status === 'PENDING';
-  const isIncomplete = profile?.onboardingCompleted === false;
+  const isApproved = (currentTenant as any)?.status === 'APPROVED' || (profile as any)?.status === 'APPROVED';
+  const isPending = !isApproved && ((currentTenant as any)?.status === 'PENDING' || (profile as any)?.status === 'PENDING');
+  const isIncomplete = !isApproved && profile?.onboardingCompleted === false;
 
   useEffect(() => {
-    if (!session?.isSuperAdmin) {
+    if (!session?.isSuperAdmin && !isApproved) {
       if (isIncomplete) {
         router.replace(`/onboarding?tenantId=${profile?.tenantId || currentTenant?.id || ''}&email=${encodeURIComponent(profile?.email || session?.email || '')}`);
       } else if (isPending) {
         router.replace(`/pending-approval?tenantId=${profile?.tenantId || currentTenant?.id || ''}&email=${encodeURIComponent(profile?.email || session?.email || '')}`);
       }
     }
-  }, [profile, currentTenant, session, isPending, isIncomplete, router]);
-
-  if (!session?.isSuperAdmin && (isIncomplete || isPending)) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FDFCFB] font-sans">
-        <div className="flex flex-col items-center space-y-4 text-center">
-          <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs text-[#78716C]">
-            {isIncomplete ? 'Redirecting to Restaurant Setup Wizard...' : 'Redirecting to Admin Approval Screen...'}
-          </p>
-        </div>
-      </div>
-    );
-  }
+  }, [profile, currentTenant, session, isApproved, isPending, isIncomplete, router]);
 
   const isModuleActive = (token: string) => {
     const t = token.toLowerCase();
@@ -181,6 +169,19 @@ function DashboardContent() {
       setActiveTab('overview');
     }
   }, [availableTabs, activeTab]);
+
+  if (!session?.isSuperAdmin && !isApproved && (isIncomplete || isPending)) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FDFCFB] font-sans">
+        <div className="flex flex-col items-center space-y-4 text-center">
+          <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs text-[#78716C]">
+            {isIncomplete ? 'Redirecting to Restaurant Setup Wizard...' : 'Redirecting to Admin Approval Screen...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const occupiedTables = (tables || []).filter((t) => t?.status === 'OCCUPIED' || t?.status === 'BILLING');
   const availableTables = (tables || []).filter((t) => t?.status === 'AVAILABLE');
@@ -237,10 +238,6 @@ function DashboardContent() {
           >
             <Sliders className="w-3.5 h-3.5 text-placeholder" />
             <span>Modules ({enabledModules.length})</span>
-          </Link>
-          <Link href="/onboarding" className="btn-secondary text-xs py-2 px-3 flex items-center space-x-1.5">
-            <Store className="w-3.5 h-3.5 text-placeholder" />
-            <span>Setup Wizard</span>
           </Link>
           <Link href="/pos" className="btn-primary text-xs py-2 px-3.5 flex items-center space-x-1.5">
             <Plus className="w-3.5 h-3.5 stroke-[2.5]" />

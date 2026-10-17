@@ -46,7 +46,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const currentStatus = registration?.status || tenant?.status || 'PENDING';
+    const isApproved = tenant?.status === 'APPROVED' || registration?.status === 'APPROVED';
+    const currentStatus = isApproved ? 'APPROVED' : (registration?.status || tenant?.status || 'PENDING');
 
     return NextResponse.json({
       success: true,
@@ -60,7 +61,7 @@ export async function GET(req: NextRequest) {
       applicantEmail: registration?.applicantEmail || tenant?.businessProfile?.email || '',
       applicantName: registration?.applicantName || '',
       rejectionReason: registration?.rejectionReason || null,
-      onboardingCompleted: tenant?.businessProfile?.onboardingCompleted || false,
+      onboardingCompleted: isApproved ? true : (tenant?.businessProfile?.onboardingCompleted || false),
       city: tenant?.businessProfile?.city || '',
       state: tenant?.businessProfile?.state || 'Karnataka',
       address: tenant?.businessProfile?.address || '',

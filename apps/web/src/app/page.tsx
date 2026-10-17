@@ -36,10 +36,11 @@ export default function RootPage() {
 
     const activeTenantId = savedTenant?.id || savedPending?.tenantId || profile?.tenantId || session?.tenantId || '';
     const activeEmail = savedPending?.email || savedSession?.email || session?.email || '';
-    const isPending = savedTenant?.status === 'PENDING' || (savedPending ? true : false);
-    const isIncomplete = savedProfile?.onboardingCompleted === false || savedPending?.onboardingCompleted === false || profile?.onboardingCompleted === false;
+    const isApproved = savedTenant?.status === 'APPROVED' || savedProfile?.status === 'APPROVED';
+    const isPending = !isApproved && (savedTenant?.status === 'PENDING' || (savedPending ? true : false));
+    const isIncomplete = !isApproved && (savedProfile?.onboardingCompleted === false || profile?.onboardingCompleted === false);
 
-    if (activeTenantId && isIncomplete) {
+    if (activeTenantId && !isApproved && isIncomplete && !savedPending?.wizardSubmitted) {
       router.replace(`/onboarding?tenantId=${activeTenantId}&email=${encodeURIComponent(activeEmail)}`);
       return;
     }
