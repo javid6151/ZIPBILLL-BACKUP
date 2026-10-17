@@ -76,7 +76,24 @@ export async function POST(req: NextRequest) {
 
     // Check tenant registration status
     if (user.tenant) {
+      const hasCompletedOnboarding = user.tenant.businessProfile?.onboardingCompleted ?? false;
+
       if (user.tenant.status === 'PENDING') {
+        if (!hasCompletedOnboarding) {
+          return NextResponse.json({
+            status: 'PENDING',
+            message: 'Please complete your restaurant setup wizard.',
+            redirect: `/onboarding?tenantId=${user.tenant.id}&email=${encodeURIComponent(user.email)}`,
+            tenantId: user.tenant.id,
+            user: {
+              id: user.id,
+              email: user.email,
+              fullName: user.fullName,
+              roleType: user.roleType,
+            },
+          });
+        }
+
         return NextResponse.json({
           status: 'PENDING_APPROVAL',
           message: 'Your restaurant registration is currently pending Super Admin review and approval.',

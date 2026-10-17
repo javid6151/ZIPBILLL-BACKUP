@@ -47,8 +47,8 @@ export default function AuthCallbackPage() {
 
         const targetUrl = data.redirect || '/dashboard';
 
-        // 1. If tenant application is PENDING admin approval on Port 9000
-        if (data.status === 'PENDING' || targetUrl.includes('/pending-approval')) {
+        // 1. If tenant application is awaiting admin review after completing onboarding
+        if (targetUrl.includes('/pending-approval')) {
           if (typeof window !== 'undefined') {
             document.cookie = 'saas_session_active=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
             try {

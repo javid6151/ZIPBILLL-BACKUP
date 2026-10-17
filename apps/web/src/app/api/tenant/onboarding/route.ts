@@ -66,14 +66,49 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Update Tenant businessType
+      // 1. Update Tenant name, businessType, and set status to PENDING for admin review
       await tx.tenant.update({
         where: { id: targetTenantId },
         data: {
+          name: businessName || tenantRecord.name,
           businessType: businessType as any,
-          status: 'APPROVED', // Ensure approved upon onboarding
+          status: 'PENDING', // Awaiting Super Admin review and approval
         },
       });
+
+      // 1b. Create or Update Registration Request for Admin Approval
+      const existingReq = await tx.registrationRequest.findFirst({
+        where: { tenantId: targetTenantId },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (existingReq) {
+        await tx.registrationRequest.update({
+          where: { id: existingReq.id },
+          data: {
+            applicantName: businessName || tenantRecord.name,
+            applicantEmail: email || '',
+            applicantPhone: phone || '',
+            businessType: businessType as any,
+            tableCountEst: hasTables ? Number(tableCount) : 0,
+            intendedModules: modules,
+            status: 'PENDING',
+          },
+        });
+      } else {
+        await tx.registrationRequest.create({
+          data: {
+            tenantId: targetTenantId,
+            applicantName: businessName || tenantRecord.name,
+            applicantEmail: email || '',
+            applicantPhone: phone || '',
+            businessType: businessType as any,
+            tableCountEst: hasTables ? Number(tableCount) : 0,
+            intendedModules: modules,
+            status: 'PENDING',
+          },
+        });
+      }
 
       // 2. Upsert BusinessProfile
       const profile = await tx.businessProfile.upsert({
@@ -358,11 +393,13 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Onboarding configuration successfully saved to PostgreSQL database.',
+      status: 'PENDING',
+      message: 'Onboarding configuration successfully saved and submitted for Super Admin review.',
+      redirect: `/pending-approval?tenantId=${targetTenantId}&email=${encodeURIComponent(email || '')}`,
       profile: result.profile,
       tenantId: targetTenantId,
       slug: tenantRecord.slug,
-      restaurantName: tenantRecord.name,
+      restaurantName: businessName || tenantRecord.name,
     });
   } catch (error: any) {
     console.error('Onboarding API error:', error);

@@ -30,6 +30,8 @@ function PendingApprovalContent() {
   const [city, setCity] = useState<string>('Bengaluru');
   const [status, setStatus] = useState<'PENDING' | 'APPROVED' | 'REJECTED'>('PENDING');
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean>(false);
+  const [tableCountEst, setTableCountEst] = useState<number | null>(null);
+  const [intendedModules, setIntendedModules] = useState<string[]>([]);
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
   const [submittedAt, setSubmittedAt] = useState<string>('');
   const [checking, setChecking] = useState<boolean>(false);
@@ -54,6 +56,8 @@ function PendingApprovalContent() {
     setEmail(targetEmail);
     if (localData?.restaurantName) setRestaurantName(localData.restaurantName);
     if (localData?.city) setCity(localData.city);
+    if (localData?.tableCountEst !== undefined) setTableCountEst(localData.tableCountEst);
+    if (Array.isArray(localData?.requestedModules)) setIntendedModules(localData.requestedModules);
     if (localData?.submittedAt) setSubmittedAt(localData.submittedAt);
   }, [searchParams]);
 
@@ -77,6 +81,12 @@ function PendingApprovalContent() {
         if (data.email) setEmail(data.email);
         if (data.restaurantName) setRestaurantName(data.restaurantName);
         if (data.city) setCity(data.city);
+        if (data.tableCountEst !== undefined && data.tableCountEst !== null) {
+          setTableCountEst(data.tableCountEst);
+        }
+        if (Array.isArray(data.intendedModules)) {
+          setIntendedModules(data.intendedModules);
+        }
         if (data.rejectionReason) setRejectionReason(data.rejectionReason);
         if (data.submittedAt) setSubmittedAt(data.submittedAt);
         if (data.onboardingCompleted !== undefined) {
@@ -203,10 +213,28 @@ function PendingApprovalContent() {
 
                 <div className="flex justify-between items-center text-[#78716C]">
                   <span className="flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-[#A8A29E]" /> Tables Configured:
+                  </span>
+                  <span className="text-[#1C1917] font-semibold">
+                    {tableCountEst !== null ? `${tableCountEst} Seating Tables` : 'Configured in Wizard'}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center text-[#78716C]">
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-[#A8A29E]" /> Feature Requests:
+                  </span>
+                  <span className="text-[#1C1917] font-semibold">
+                    {intendedModules.length > 0 ? `${intendedModules.length} Modules Selected` : 'Full POS Suite'}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center text-[#78716C]">
+                  <span className="flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-[#A8A29E]" /> Approval Stage:
                   </span>
                   <span className="font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
-                    Awaiting Super Admin
+                    Awaiting Super Admin (Port 9000)
                   </span>
                 </div>
 

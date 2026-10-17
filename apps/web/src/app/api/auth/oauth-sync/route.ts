@@ -33,15 +33,36 @@ export async function POST(req: NextRequest) {
     });
 
     if (user && user.tenant) {
+      const hasCompletedOnboarding = user.tenant.businessProfile?.onboardingCompleted ?? false;
+
       // 1. Check if user's restaurant application is pending admin review
       if (user.tenant.status === 'PENDING') {
+        if (!hasCompletedOnboarding) {
+          return NextResponse.json({
+            success: true,
+            status: 'PENDING',
+            tenantId: user.tenant.id,
+            tenant: user.tenant,
+            profile: user.tenant.businessProfile,
+            onboardingCompleted: false,
+            redirect: `/onboarding?tenantId=${user.tenant.id}&email=${encodeURIComponent(user.email)}`,
+            user: {
+              id: user.id,
+              email: user.email,
+              fullName: user.fullName,
+              roleType: user.roleType,
+              tenantId: user.tenantId,
+            },
+          });
+        }
+
         return NextResponse.json({
           success: true,
           status: 'PENDING',
           tenantId: user.tenant.id,
           tenant: user.tenant,
           profile: user.tenant.businessProfile,
-          onboardingCompleted: false,
+          onboardingCompleted: true,
           redirect: `/pending-approval?tenantId=${user.tenant.id}&email=${encodeURIComponent(user.email)}`,
           user: {
             id: user.id,
@@ -67,7 +88,6 @@ export async function POST(req: NextRequest) {
 
       // 3. Tenant is APPROVED by administrator:
       // Check whether user has completed the Setup Wizard
-      const hasCompletedOnboarding = user.tenant.businessProfile?.onboardingCompleted ?? false;
       const targetRedirect = hasCompletedOnboarding
         ? '/dashboard'
         : `/onboarding?tenantId=${user.tenant.id}&email=${encodeURIComponent(user.email)}`;
@@ -356,7 +376,7 @@ export async function POST(req: NextRequest) {
       tenant: result.tenant,
       profile: result.profile,
       onboardingCompleted: false,
-      redirect: `/pending-approval?tenantId=${result.tenant.id}&email=${encodeURIComponent(email)}`,
+      redirect: `/onboarding?tenantId=${result.tenant.id}&email=${encodeURIComponent(email)}`,
       user: {
         id: result.user.id,
         email: result.user.email,

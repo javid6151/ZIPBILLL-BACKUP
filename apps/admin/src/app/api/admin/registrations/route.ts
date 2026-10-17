@@ -87,6 +87,62 @@ export async function POST(req: NextRequest) {
           data: { status: 'APPROVED' },
         });
 
+        // Ensure business profile marks onboardingCompleted = true
+        await tx.businessProfile.updateMany({
+          where: { tenantId: reg.tenantId },
+          data: { onboardingCompleted: true },
+        });
+
+        // Ensure requested modules are enabled
+        if (Array.isArray(reg.intendedModules) && reg.intendedModules.length > 0) {
+          for (const mod of reg.intendedModules as string[]) {
+            const moduleToken = String(mod).toLowerCase();
+            await tx.tenantModule.upsert({
+              where: {
+                tenantId_moduleToken: {
+                  tenantId: reg.tenantId,
+                  moduleToken,
+                },
+              },
+              update: { isEnabled: true },
+              create: {
+                tenantId: reg.tenantId,
+                moduleToken,
+                isEnabled: true,
+              },
+            });
+          }
+        }
+
+        // Provision seating tables if not already generated
+        const existingTablesCount = await tx.table.count({
+          where: { tenantId: reg.tenantId },
+        });
+
+        if (existingTablesCount === 0 && reg.tableCountEst && reg.tableCountEst > 0) {
+          const defaultSection = await tx.tableSection.create({
+            data: {
+              tenantId: reg.tenantId,
+              name: 'Main Dining',
+              sortOrder: 1,
+            },
+          });
+
+          const tablesData = [];
+          for (let i = 1; i <= reg.tableCountEst; i++) {
+            tablesData.push({
+              tenantId: reg.tenantId,
+              sectionId: defaultSection.id,
+              tableNumber: `T${i}`,
+              tableName: `Table ${i}`,
+              capacity: i % 3 === 0 ? 6 : i % 2 === 0 ? 4 : 2,
+              status: 'AVAILABLE' as const,
+              sortOrder: i,
+            });
+          }
+          await tx.table.createMany({ data: tablesData });
+        }
+
         // Seed default starter subscription if none
         const starterPlan = await tx.subscriptionPlan.findFirst({
           where: { name: 'STARTER' },
