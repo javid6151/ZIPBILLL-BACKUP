@@ -481,31 +481,27 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
   };
 
   return (
-    <div className="min-h-[100dvh] md:h-screen w-full md:max-h-screen md:overflow-hidden overflow-y-auto bg-[#FAFAF8] text-[#1C1917] flex items-center justify-center p-3 sm:p-5 lg:p-6 font-sans relative selection:bg-orange-500 selection:text-white">
-      {/* Ambient background glows */}
-      <div className="absolute -top-24 -left-24 w-96 h-96 bg-orange-200/40 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-amber-200/30 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-[100dvh] md:h-screen w-full md:overflow-hidden bg-[#FAFAF8] text-[#1C1917] flex flex-col md:flex-row font-sans relative selection:bg-orange-500 selection:text-white">
+      {/* Ambient background accents */}
+      <div className="absolute top-0 right-0 w-96 h-96 bg-orange-100/40 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-96 h-96 bg-amber-100/30 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute inset-0 bg-[radial-gradient(#EA580C_1px,transparent_1px)] [background-size:28px_28px] opacity-[0.035] pointer-events-none" />
 
-      {/* Main Container Card */}
-      <div className="relative w-full max-w-[480px] md:max-w-[1020px] bg-white rounded-3xl border border-[#E8E6E4] shadow-[0_25px_60px_-15px_rgba(28,25,23,0.08),0_1px_3px_rgba(0,0,0,0.02)] overflow-hidden flex flex-col md:flex-row md:h-[min(650px,94vh)] my-auto transition-all">
-        
-        {/* LEFT PANEL: Visual Showcase Video (Clean, No Text Overlays) */}
-        <div className="w-full md:w-1/2 h-64 sm:h-72 md:h-full p-3 sm:p-4 shrink-0 flex flex-col">
-          <div className="relative w-full h-full rounded-2xl overflow-hidden bg-stone-900 group shadow-inner">
-            <video
-              src={VIDEO_URL}
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105"
-            />
-          </div>
-        </div>
+      {/* LEFT PANEL: Visual Showcase Video (Occupies total screen height and 45% screen width dynamically on laptop) */}
+      <div className="w-full md:w-[45vw] h-64 sm:h-80 md:h-screen shrink-0 relative overflow-hidden bg-stone-900 border-b md:border-b-0 md:border-r border-[#E8E6E4]">
+        <video
+          src={VIDEO_URL}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out hover:scale-105"
+        />
+      </div>
 
-        {/* RIGHT PANEL: Authentication Form */}
-        <div className="w-full md:w-1/2 flex flex-col justify-between p-5 sm:p-7 md:py-6 md:pl-10 md:pr-8 lg:pl-11 lg:pr-10 overflow-y-auto">
+      {/* RIGHT PANEL: Authentication Form (Occupies 55% screen width and total height on laptop) */}
+      <div className="w-full md:w-[55vw] h-full md:h-screen flex flex-col justify-between overflow-y-auto bg-white/90 backdrop-blur-sm p-6 sm:p-8 md:px-10 md:py-8 lg:px-14 xl:px-20 relative z-10">
+        <div className="w-full max-w-[440px] mx-auto flex flex-col justify-between min-h-full py-2">
           
           {/* Top Bar: Brand Logo & Segmented Mode Switch */}
           <div className="flex items-center justify-between pb-2 border-b border-[#F0EEEB]">
