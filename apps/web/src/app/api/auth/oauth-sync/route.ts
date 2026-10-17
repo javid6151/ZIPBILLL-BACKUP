@@ -33,16 +33,44 @@ export async function POST(req: NextRequest) {
     });
 
     if (user && user.tenant) {
-      // User and restaurant already exist. Ensure onboarding is marked completed so user goes straight to dashboard
-      if (user.tenant.businessProfile && !user.tenant.businessProfile.onboardingCompleted) {
-        try {
-          await prisma.businessProfile.update({
-            where: { id: user.tenant.businessProfile.id },
-            data: { onboardingCompleted: true },
-          });
-          user.tenant.businessProfile.onboardingCompleted = true;
-        } catch {}
+      // 1. Check if user's restaurant application is pending admin review
+      if (user.tenant.status === 'PENDING') {
+        return NextResponse.json({
+          success: true,
+          status: 'PENDING',
+          tenantId: user.tenant.id,
+          tenant: user.tenant,
+          profile: user.tenant.businessProfile,
+          onboardingCompleted: false,
+          redirect: `/pending-approval?tenantId=${user.tenant.id}&email=${encodeURIComponent(user.email)}`,
+          user: {
+            id: user.id,
+            email: user.email,
+            fullName: user.fullName,
+            roleType: user.roleType,
+            tenantId: user.tenantId,
+          },
+        });
       }
+
+      // 2. Check if rejected
+      if (user.tenant.status === 'REJECTED') {
+        return NextResponse.json(
+          {
+            error: 'Your restaurant registration was not approved. Please contact platform support.',
+            status: 'REJECTED',
+            redirect: `/pending-approval?tenantId=${user.tenant.id}&email=${encodeURIComponent(user.email)}`,
+          },
+          { status: 403 }
+        );
+      }
+
+      // 3. Tenant is APPROVED by administrator:
+      // Check whether user has completed the Setup Wizard
+      const hasCompletedOnboarding = user.tenant.businessProfile?.onboardingCompleted ?? false;
+      const targetRedirect = hasCompletedOnboarding
+        ? '/dashboard'
+        : `/onboarding?tenantId=${user.tenant.id}&email=${encodeURIComponent(user.email)}`;
 
       // Seed starter tables and menu if empty or requested custom table count
       try {
@@ -56,10 +84,11 @@ export async function POST(req: NextRequest) {
       const response = NextResponse.json({
         success: true,
         isNew: false,
+        status: user.tenant.status,
         tenant: user.tenant,
         profile: user.tenant.businessProfile,
-        onboardingCompleted: true,
-        redirect: '/dashboard',
+        onboardingCompleted: hasCompletedOnboarding,
+        redirect: targetRedirect,
         user: {
           id: user.id,
           email: user.email,
@@ -79,23 +108,23 @@ export async function POST(req: NextRequest) {
       return response;
     }
 
-    // 2. First-time login: Create clean restaurant workspace for this user
+    // 2. First-time Google login: Create clean restaurant workspace with PENDING status for Super Admin review
     const restaurantName = `${cleanName}'s Restaurant`;
     const baseSlug = restaurantName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').slice(0, 30);
     const slug = `${baseSlug}-${Date.now().toString(36)}`;
 
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Create Tenant with APPROVED status
+      // 1. Create Tenant with PENDING status (awaiting Admin Approval on Port 9000)
       const tenant = await tx.tenant.create({
         data: {
           slug,
           name: restaurantName,
           businessType: 'RESTAURANT',
-          status: 'APPROVED',
+          status: 'PENDING',
         },
       });
 
-      // 2. Create BusinessProfile with onboardingCompleted: true so user directly accesses dashboard
+      // 2. Create BusinessProfile with onboardingCompleted: false (awaits Setup Wizard after approval)
       const profile = await tx.businessProfile.create({
         data: {
           tenantId: tenant.id,
@@ -109,7 +138,7 @@ export async function POST(req: NextRequest) {
           currencyCode: 'INR',
           currencySymbol: '₹',
           timezone: 'Asia/Kolkata',
-          onboardingCompleted: true,
+          onboardingCompleted: false,
         },
       });
 
@@ -234,7 +263,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // 8. Create RegistrationRequest (approved)
+      // 8. Create RegistrationRequest (PENDING approval for Super Admin review on Port 9000)
       await tx.registrationRequest.create({
         data: {
           tenantId: tenant.id,
@@ -242,7 +271,8 @@ export async function POST(req: NextRequest) {
           applicantEmail: email,
           applicantPhone: '',
           businessType: 'RESTAURANT',
-          status: 'APPROVED',
+          status: 'PENDING',
+          tableCountEst: tableCount ? Number(tableCount) : 8,
           intendedModules: defaultModules,
         },
       });
@@ -317,10 +347,12 @@ export async function POST(req: NextRequest) {
     const response = NextResponse.json({
       success: true,
       isNew: true,
+      status: 'PENDING',
+      tenantId: result.tenant.id,
       tenant: result.tenant,
       profile: result.profile,
-      onboardingCompleted: true,
-      redirect: '/dashboard',
+      onboardingCompleted: false,
+      redirect: `/pending-approval?tenantId=${result.tenant.id}&email=${encodeURIComponent(email)}`,
       user: {
         id: result.user.id,
         email: result.user.email,
@@ -328,13 +360,6 @@ export async function POST(req: NextRequest) {
         roleType: result.user.roleType,
         tenantId: result.user.tenantId,
       },
-    });
-
-    response.cookies.set('saas_session_active', 'true', {
-      path: '/',
-      maxAge: 604800,
-      sameSite: 'lax',
-      httpOnly: false,
     });
 
     return response;

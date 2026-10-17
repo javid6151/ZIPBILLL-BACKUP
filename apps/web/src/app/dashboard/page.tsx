@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useApp } from '@/lib/state';
 import {
   TrendingUp,
@@ -87,6 +87,7 @@ const BUSINESS_MODEL_INFO: Record<string, { label: string; badge: string; desc: 
 };
 
 function DashboardContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const initialTab = searchParams.get('tab') || 'overview';
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -108,6 +109,13 @@ function DashboardContent() {
     isLoadingData,
     updateTableStatus,
   } = useApp();
+
+  // Guard: If restaurant tenant is approved but onboarding wizard not completed, forward to wizard
+  useEffect(() => {
+    if (profile && profile.tenantId && profile.onboardingCompleted === false) {
+      router.replace(`/onboarding?tenantId=${profile.tenantId}&email=${encodeURIComponent(profile.email || '')}`);
+    }
+  }, [profile, router]);
 
   const isModuleActive = (token: string) => {
     const t = token.toLowerCase();

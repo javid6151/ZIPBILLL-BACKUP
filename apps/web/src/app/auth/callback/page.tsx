@@ -41,10 +41,36 @@ export default function AuthCallbackPage() {
         });
 
         const data = await res.json();
-        if (!res.ok) {
+        if (!res.ok && !data.redirect) {
           throw new Error(data.error || 'Failed to initialize restaurant workspace.');
         }
 
+        const targetUrl = data.redirect || '/dashboard';
+
+        // 1. If tenant application is PENDING admin approval on Port 9000
+        if (data.status === 'PENDING' || targetUrl.includes('/pending-approval')) {
+          if (typeof window !== 'undefined') {
+            document.cookie = 'saas_session_active=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+            try {
+              localStorage.removeItem('saas_session_active');
+              localStorage.setItem(
+                'saas_pending_registration',
+                JSON.stringify({
+                  tenantId: data.tenantId || data.tenant?.id,
+                  email: userEmail,
+                  restaurantName: data.tenant?.name || `${userName}'s Restaurant`,
+                  submittedAt: new Date().toISOString(),
+                })
+              );
+            } catch {}
+            window.location.replace(targetUrl);
+          } else {
+            router.replace(targetUrl);
+          }
+          return;
+        }
+
+        // 2. Tenant is APPROVED by administrator
         const activeTenant = data.tenant;
         const activeProfile = data.profile || (activeTenant ? {
           id: `prof-${activeTenant.id}`,
@@ -59,7 +85,7 @@ export default function AuthCallbackPage() {
           currencyCode: 'INR',
           currencySymbol: '₹',
           timezone: 'Asia/Kolkata',
-          onboardingCompleted: true,
+          onboardingCompleted: data.onboardingCompleted ?? false,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         } : null);
@@ -76,13 +102,13 @@ export default function AuthCallbackPage() {
           permissions: ['*'],
         };
 
-        // Guarantee immediate synchronous persistence in localStorage and cookies so navigation guard passes immediately
+        // Guarantee immediate synchronous persistence in localStorage and cookies
         if (typeof window !== 'undefined') {
           try {
             document.cookie = 'saas_session_active=true; path=/; max-age=604800; SameSite=Lax';
             localStorage.setItem('saas_active_session', JSON.stringify(activeSessionObj));
             if (activeProfile) {
-              localStorage.setItem('saas_active_profile', JSON.stringify({ ...activeProfile, onboardingCompleted: true }));
+              localStorage.setItem('saas_active_profile', JSON.stringify(activeProfile));
             }
             if (activeTenant) {
               localStorage.setItem('saas_active_tenant', JSON.stringify(activeTenant));
@@ -94,7 +120,7 @@ export default function AuthCallbackPage() {
         }
 
         if (activeProfile) {
-          setProfile({ ...activeProfile, onboardingCompleted: true });
+          setProfile(activeProfile);
         }
         if (activeTenant) {
           setCurrentTenant(activeTenant);
@@ -104,11 +130,11 @@ export default function AuthCallbackPage() {
         }
         setSession(activeSessionObj);
 
-        // Immediate hard replace to dashboard ensures fresh hydration with zero redirect bounce
+        // Direct user to target URL (/onboarding for setup wizard or /dashboard)
         if (typeof window !== 'undefined') {
-          window.location.replace('/dashboard');
+          window.location.replace(targetUrl);
         } else {
-          router.replace('/dashboard');
+          router.replace(targetUrl);
         }
       } catch (err: any) {
         console.error('OAuth sync error:', err);

@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
           status: 'PENDING_APPROVAL',
           message: 'Your restaurant registration is currently pending Super Admin review and approval.',
-          redirect: '/pending-approval',
+          redirect: `/pending-approval?tenantId=${user.tenant.id}&email=${encodeURIComponent(user.email)}`,
           tenantId: user.tenant.id,
           user: {
             id: user.id,
@@ -159,6 +159,11 @@ export async function POST(req: NextRequest) {
     // Generate or use Supabase token
     const sessionToken = supabaseToken || `sess_${Date.now()}_${Math.random().toString(36).substring(2)}`;
 
+    const hasCompletedOnboarding = user.tenant?.businessProfile?.onboardingCompleted ?? false;
+    const targetRedirect = hasCompletedOnboarding
+      ? '/dashboard'
+      : `/onboarding?tenantId=${user.tenant?.id}&email=${encodeURIComponent(user.email)}`;
+
     const response = NextResponse.json({
       success: true,
       token: sessionToken,
@@ -181,9 +186,9 @@ export async function POST(req: NextRequest) {
       } : null,
       profile: user.tenant?.businessProfile || null,
       userSettings,
-      onboardingCompleted: true,
+      onboardingCompleted: hasCompletedOnboarding,
       enabledModules,
-      redirect: '/dashboard',
+      redirect: targetRedirect,
     });
 
     response.cookies.set('saas_session_active', 'true', {

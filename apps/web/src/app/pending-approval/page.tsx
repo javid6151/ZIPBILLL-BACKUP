@@ -29,10 +29,12 @@ function PendingApprovalContent() {
   const [restaurantName, setRestaurantName] = useState<string>('');
   const [city, setCity] = useState<string>('Bengaluru');
   const [status, setStatus] = useState<'PENDING' | 'APPROVED' | 'REJECTED'>('PENDING');
+  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean>(false);
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
   const [submittedAt, setSubmittedAt] = useState<string>('');
   const [checking, setChecking] = useState<boolean>(false);
   const [lastChecked, setLastChecked] = useState<Date>(new Date());
+  const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
 
   // Initialize from searchParams or localStorage
   useEffect(() => {
@@ -71,10 +73,15 @@ function PendingApprovalContent() {
         if (data.status) {
           setStatus(data.status);
         }
+        if (data.tenantId) setTenantId(data.tenantId);
+        if (data.email) setEmail(data.email);
         if (data.restaurantName) setRestaurantName(data.restaurantName);
         if (data.city) setCity(data.city);
         if (data.rejectionReason) setRejectionReason(data.rejectionReason);
         if (data.submittedAt) setSubmittedAt(data.submittedAt);
+        if (data.onboardingCompleted !== undefined) {
+          setOnboardingCompleted(Boolean(data.onboardingCompleted));
+        }
       }
     } catch (err) {
       console.warn('Status check warning:', err);
@@ -92,6 +99,33 @@ function PendingApprovalContent() {
     const interval = setInterval(fetchStatus, 3500);
     return () => clearInterval(interval);
   }, [fetchStatus, status]);
+
+  // Once approved by admin, automatically countdown and forward into Setup Wizard
+  useEffect(() => {
+    if (status !== 'APPROVED') return;
+
+    // Set cookie so authenticated pages load smoothly
+    if (typeof document !== 'undefined') {
+      document.cookie = 'saas_session_active=true; path=/; max-age=604800; SameSite=Lax';
+    }
+
+    setRedirectCountdown(3);
+    const interval = setInterval(() => {
+      setRedirectCountdown((prev) => {
+        if (prev === null || prev <= 1) {
+          clearInterval(interval);
+          const targetUrl = onboardingCompleted
+            ? '/dashboard'
+            : `/onboarding?tenantId=${tenantId}&email=${encodeURIComponent(email)}`;
+          router.push(targetUrl);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [status, onboardingCompleted, tenantId, email, router]);
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#1C1917] flex flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8 font-sans selection:bg-[#EA580C]/20">
@@ -249,26 +283,54 @@ function PendingApprovalContent() {
                   Congratulations! Restaurant Approved
                 </h1>
                 <p className="text-sm text-[#78716C] max-w-md mx-auto leading-relaxed">
-                  Your restaurant workspace for <strong className="text-[#1C1917]">{restaurantName}</strong> has been officially approved and provisioned in the database.
+                  Your restaurant workspace for <strong className="text-[#1C1917]">{restaurantName}</strong> has been officially approved! {onboardingCompleted ? 'You can proceed directly to your restaurant dashboard.' : 'Complete the Setup Wizard to configure your business model, tables, menu, and dashboard.'}
                 </p>
+                {redirectCountdown !== null && redirectCountdown > 0 && !onboardingCompleted && (
+                  <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-orange-50 text-[#EA580C] border border-orange-200 animate-pulse">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Opening Restaurant Setup Wizard in {redirectCountdown}s...</span>
+                  </div>
+                )}
               </div>
 
               <div className="pt-4 space-y-3">
-                <Link
-                  href="/dashboard"
-                  className="w-full py-3.5 px-6 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white font-bold text-sm flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transition-all"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>Enter Restaurant Dashboard</span>
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
+                {!onboardingCompleted ? (
+                  <>
+                    <Link
+                      href={`/onboarding?tenantId=${tenantId}&email=${encodeURIComponent(email)}`}
+                      className="w-full py-3.5 px-6 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white font-bold text-sm flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transition-all"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>Start Restaurant Setup Wizard (Step 1 of 11)</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
 
-                <Link
-                  href={`/onboarding?tenantId=${tenantId}&email=${encodeURIComponent(email)}`}
-                  className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-stone-50 border border-[#E8E6E4] text-[#1C1917] font-semibold text-xs flex items-center justify-center space-x-1.5 transition"
-                >
-                  <span>Optional: Customise in Setup Wizard</span>
-                </Link>
+                    <Link
+                      href="/dashboard"
+                      className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-stone-50 border border-[#E8E6E4] text-[#78716C] hover:text-[#1C1917] font-semibold text-xs flex items-center justify-center space-x-1.5 transition"
+                    >
+                      <span>Skip Directly to Default Dashboard</span>
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/dashboard"
+                      className="w-full py-3.5 px-6 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white font-bold text-sm flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transition-all"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>Enter Restaurant Dashboard</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
+
+                    <Link
+                      href={`/onboarding?tenantId=${tenantId}&email=${encodeURIComponent(email)}`}
+                      className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-stone-50 border border-[#E8E6E4] text-[#1C1917] font-semibold text-xs flex items-center justify-center space-x-1.5 transition"
+                    >
+                      <span>Re-open Setup Wizard</span>
+                    </Link>
+                  </>
+                )}
               </div>
             </>
           ) : (
