@@ -341,6 +341,7 @@ function PendingApprovalContent() {
                     <ExternalLink className="w-3.5 h-3.5" />
                   </a>
                 </div>
+
                 <div className="pt-2 flex items-center justify-center space-x-4 text-xs text-[#78716C]">
                   <Link href="/login" className="hover:text-[#EA580C] font-semibold transition">
                     Already approved? Sign In

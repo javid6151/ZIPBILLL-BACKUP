@@ -272,7 +272,6 @@ function OnboardingWizardContent() {
             setTableCount(data.tableCountEst);
             setUsesTables(data.tableCountEst > 0);
           }
-
           // Map approved intended platform modules
           if (Array.isArray(data.intendedModules) && data.intendedModules.length > 0) {
             const mapped = mapRequestedModulesToWizard(data.intendedModules);
