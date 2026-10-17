@@ -198,11 +198,7 @@ function PendingApprovalContent() {
                   <strong className="text-[#1C1917] font-bold">
                     {restaurantName || 'Your Restaurant'}
                   </strong>{' '}
-                  has been sent to the Platform Admin Panel on{' '}
-                  <span className="font-mono font-semibold text-amber-800 bg-amber-100/70 px-1.5 py-0.5 rounded">
-                    Port 9000
-                  </span>
-                  .
+                  has been sent to the Platform Admin Control Plane for review.
                 </p>
               </div>
 
@@ -267,7 +263,7 @@ function PendingApprovalContent() {
                     <ShieldCheck className="w-3.5 h-3.5 text-[#A8A29E]" /> Approval Stage:
                   </span>
                   <span className="font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
-                    Awaiting Super Admin (Port 9000)
+                    Awaiting Super Admin Approval
                   </span>
                 </div>
 
@@ -303,7 +299,7 @@ function PendingApprovalContent() {
               <div className="p-3.5 rounded-xl bg-orange-50/70 border border-orange-200/60 text-left flex items-start space-x-3 text-xs text-[#9A3412]">
                 <Sparkles className="w-4 h-4 text-[#EA580C] shrink-0 mt-0.5" />
                 <p className="leading-relaxed">
-                  <strong>Workflow Rule:</strong> The Super Admin must review and click <strong>Approve</strong> in the Admin Control Plane (Port 9000). Until then, login to the workspace is restricted.
+                  <strong>Workflow Rule:</strong> The Super Admin must review and click <strong>Approve</strong> in the Admin Control Plane. Until then, login to the workspace is restricted.
                 </p>
               </div>
 
@@ -326,7 +322,7 @@ function PendingApprovalContent() {
                       process.env.NEXT_PUBLIC_ADMIN_URL ||
                       (typeof window !== 'undefined' && window.location.hostname.includes('localhost')
                         ? 'http://localhost:9000'
-                        : 'https://zipbill.vercel.app')
+                        : '/tarun/admin')
                     }
                     target="_blank"
                     rel="noreferrer"

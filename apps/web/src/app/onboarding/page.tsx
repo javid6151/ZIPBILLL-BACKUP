@@ -608,7 +608,7 @@ function OnboardingWizardContent() {
           </div>
           <h2 className="text-xl font-bold text-[#1C1917]">Application Under Review</h2>
           <p className="text-xs text-[#78716C] leading-relaxed">
-            Your 9-step registration for <strong className="text-[#1C1917]">{name || 'Your Restaurant'}</strong> is currently pending Super Admin review on Port 9000.
+            Your 9-step registration for <strong className="text-[#1C1917]">{name || 'Your Restaurant'}</strong> is currently pending Super Admin review in the Admin Portal.
           </p>
           <div className="pt-2 space-y-2">
             <Link
@@ -1487,7 +1487,7 @@ function OnboardingWizardContent() {
                     Approval for Admin
                   </span>
                   <span className="text-[11px] leading-relaxed block text-[#9A3412]">
-                    All 9 onboarding steps are 100% filled. Clicking the button below transmits your registration details directly to the Super Admin portal on Port 9000. Once approved by the administrator, your dynamic restaurant dashboard is immediately generated.
+                    All 9 onboarding steps are 100% filled. Clicking the button below transmits your registration details directly to the Super Admin portal. Once approved by the administrator, your dynamic restaurant dashboard is immediately generated.
                   </span>
                 </div>
               </div>
