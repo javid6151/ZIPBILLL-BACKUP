@@ -46,7 +46,6 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
 
   // Mode: 'login' or 'register'
   const [mode, setMode] = useState<'login' | 'register'>(defaultMode);
-  const [registerStep, setRegisterStep] = useState<1 | 2>(1);
 
   // Common & Login State
   const [email, setEmail] = useState('');
@@ -310,20 +309,37 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
         return;
       }
 
-      if (data.status === 'PENDING_APPROVAL' || data.redirect?.includes('/pending-approval')) {
-        router.push(data.redirect || '/pending-approval');
-        return;
-      }
-
       if (data.redirect?.includes('/onboarding')) {
         if (typeof window !== 'undefined') {
           document.cookie = 'saas_session_active=true; path=/; max-age=604800; SameSite=Lax';
           if (data.profile) localStorage.setItem('saas_active_profile', JSON.stringify(data.profile));
           if (data.tenant) localStorage.setItem('saas_active_tenant', JSON.stringify(data.tenant));
+          if (data.user) {
+            localStorage.setItem(
+              'saas_active_session',
+              JSON.stringify({
+                ...session,
+                tenantId: data.tenant?.id || data.tenantId,
+                fullName: data.user.fullName,
+                email: data.user.email,
+                userId: data.user.id,
+                roleName: data.user.roleType || 'OWNER',
+                permissions: ['*'],
+              })
+            );
+          }
           window.location.replace(data.redirect);
         } else {
           router.push(data.redirect);
         }
+        return;
+      }
+
+      if (data.status === 'PENDING_APPROVAL' || data.redirect?.includes('/pending-approval')) {
+        if (typeof window !== 'undefined') {
+          if (data.tenant) localStorage.setItem('saas_active_tenant', JSON.stringify(data.tenant));
+        }
+        router.push(data.redirect || `/pending-approval?tenantId=${data.tenantId}&email=${encodeURIComponent(cleanEmail)}`);
         return;
       }
 
@@ -379,7 +395,7 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
     }
   };
 
-  const handleRegisterStep1 = (e: React.FormEvent) => {
+  const handleRegisterDirect = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
       setAuthError('Passwords do not match. Please verify your password.');
@@ -389,54 +405,74 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
       setAuthError('Password must be at least 6 characters.');
       return;
     }
-    setAuthError(null);
-    setRegisterStep(2);
-  };
 
-  const handleRegisterFinal = async (e: React.FormEvent) => {
-    e.preventDefault();
     setLoading(true);
     setAuthError(null);
+
+    const cleanEmail = email.trim();
+    const cleanName = fullName.trim();
+    const defaultRestName = `${cleanName}'s Restaurant`;
 
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fullName,
-          email: email.trim(),
+          fullName: cleanName,
+          email: cleanEmail,
           password,
-          restaurantName,
-          businessType: bType,
-          phone,
-          city: city || 'Bengaluru',
+          restaurantName: defaultRestName,
+          businessType: 'RESTAURANT',
+          phone: '',
+          city: 'Bengaluru',
           country: 'India',
-          tableCount,
+          tableCount: 8,
         }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to register restaurant.');
+        throw new Error(data.error || 'Failed to register account.');
       }
+
+      const activeSessionObj = {
+        ...session,
+        tenantId: data.tenantId,
+        fullName: cleanName,
+        email: cleanEmail,
+        roleName: 'OWNER',
+        permissions: ['*'],
+        userId: data.userId,
+      };
 
       try {
         localStorage.setItem(
           'saas_pending_registration',
           JSON.stringify({
             tenantId: data.tenantId,
-            restaurantName,
-            email: email.trim(),
-            phone,
-            city: city || 'Bengaluru',
-            businessType: bType,
-            tableCount,
+            restaurantName: defaultRestName,
+            email: cleanEmail,
+            phone: '',
+            city: 'Bengaluru',
+            businessType: 'RESTAURANT',
+            tableCount: 8,
             submittedAt: new Date().toISOString(),
+            onboardingCompleted: false,
           })
         );
+        localStorage.setItem('saas_active_session', JSON.stringify(activeSessionObj));
+        if (data.tenant) localStorage.setItem('saas_active_tenant', JSON.stringify(data.tenant));
+        localStorage.setItem('saas_active_business_type', 'RESTAURANT');
+        document.cookie = 'saas_session_active=true; path=/; max-age=604800; SameSite=Lax';
       } catch {}
 
-      router.push(`/pending-approval?tenantId=${data.tenantId}&email=${encodeURIComponent(email.trim())}`);
+      // Flow: Login/Register -> Setup Wizard (between them) -> Admin Review -> Approval
+      const wizardUrl = `/onboarding?tenantId=${data.tenantId}&email=${encodeURIComponent(cleanEmail)}`;
+      if (typeof window !== 'undefined') {
+        window.location.replace(wizardUrl);
+      } else {
+        router.push(wizardUrl);
+      }
     } catch (err: any) {
       setAuthError(err.message || 'Registration failed. Please try again.');
     } finally {
@@ -445,70 +481,27 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
   };
 
   return (
-    <div className="min-h-[100dvh] md:h-screen w-full md:max-h-screen md:overflow-hidden overflow-y-auto bg-[#FAFAF8] text-[#1C1917] flex items-center justify-center p-3 sm:p-5 lg:p-6 font-sans relative selection:bg-orange-500 selection:text-white">
-      {/* Ambient background glows */}
-      <div className="absolute -top-24 -left-24 w-96 h-96 bg-orange-200/40 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-amber-200/30 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-[100dvh] md:h-screen w-full md:overflow-hidden bg-[#FAFAF8] text-[#1C1917] flex flex-col md:flex-row font-sans relative selection:bg-orange-500 selection:text-white">
+      {/* Ambient background accents */}
+      <div className="absolute top-0 right-0 w-96 h-96 bg-orange-100/40 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-96 h-96 bg-amber-100/30 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute inset-0 bg-[radial-gradient(#EA580C_1px,transparent_1px)] [background-size:28px_28px] opacity-[0.035] pointer-events-none" />
 
-      {/* Main Container Card */}
-      <div className="relative w-full max-w-[480px] md:max-w-[1020px] bg-white rounded-3xl border border-[#E8E6E4] shadow-[0_25px_60px_-15px_rgba(28,25,23,0.08),0_1px_3px_rgba(0,0,0,0.02)] overflow-hidden flex flex-col md:flex-row md:h-[min(650px,94vh)] my-auto transition-all">
-        
-        {/* LEFT PANEL: Visual Showcase & Brand Highlights */}
-        <div className="w-full md:w-1/2 h-64 sm:h-72 md:h-full p-3 sm:p-4 shrink-0 flex flex-col">
-          <div className="relative w-full h-full rounded-2xl overflow-hidden bg-stone-900 group shadow-inner flex flex-col justify-between p-6">
-            <video
-              src={VIDEO_URL}
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105 opacity-80"
-            />
-            {/* Dark gradient overlay for crystal readability */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/60 pointer-events-none" />
+      {/* LEFT PANEL: Visual Showcase Video (Occupies total screen height and full 45% screen width with zero bars and zero cut) */}
+      <div className="w-full md:w-[45vw] h-64 sm:h-80 md:h-screen shrink-0 relative overflow-hidden bg-stone-900 border-b md:border-b-0 md:border-r border-[#E8E6E4]">
+        <video
+          src={VIDEO_URL}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="w-full h-full object-fill transition-transform duration-700 ease-out"
+        />
+      </div>
 
-            {/* Top brand chip */}
-            <div className="relative z-10 flex items-center justify-between">
-              <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-white text-[11px] font-semibold tracking-wide border border-white/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Enterprise POS System</span>
-              </span>
-              <span className="text-white/60 text-[11px] font-medium hidden sm:inline">v2.4 Production</span>
-            </div>
-
-            {/* Bottom feature badges on video */}
-            <div className="relative z-10 space-y-3">
-              <div className="space-y-1">
-                <h2 className="text-white font-bold text-xl sm:text-2xl tracking-tight leading-snug">
-                  Precision Restaurant POS, Kitchen & Billing
-                </h2>
-                <p className="text-white/70 text-xs leading-relaxed max-w-sm">
-                  Offline-first architecture with instant thermal printing, table map, KDS and GST compliance.
-                </p>
-              </div>
-
-              {/* Floating pill tags */}
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/50 backdrop-blur-md text-white text-[10px] font-medium border border-white/10">
-                  <Zap className="w-3 h-3 text-amber-400" />
-                  <span>0.2s KOT Dispatch</span>
-                </span>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/50 backdrop-blur-md text-white text-[10px] font-medium border border-white/10">
-                  <LayoutGrid className="w-3 h-3 text-blue-400" />
-                  <span>Live Table Floor Map</span>
-                </span>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/50 backdrop-blur-md text-white text-[10px] font-medium border border-white/10">
-                  <ChefHat className="w-3 h-3 text-emerald-400" />
-                  <span>Kitchen Queue (KDS)</span>
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* RIGHT PANEL: Authentication Form */}
-        <div className="w-full md:w-1/2 flex flex-col justify-between p-5 sm:p-7 md:py-6 md:pl-10 md:pr-8 lg:pl-11 lg:pr-10 overflow-y-auto">
+      {/* RIGHT PANEL: Authentication Form (Occupies 55% screen width and total height on laptop) */}
+      <div className="w-full md:w-[55vw] h-full md:h-screen flex flex-col justify-between overflow-y-auto bg-white/90 backdrop-blur-sm p-6 sm:p-8 md:px-10 md:py-8 lg:px-14 xl:px-20 relative z-10">
+        <div className="w-full max-w-[440px] mx-auto flex flex-col justify-between min-h-full py-2">
           
           {/* Top Bar: Brand Logo & Segmented Mode Switch */}
           <div className="flex items-center justify-between pb-2 border-b border-[#F0EEEB]">
@@ -536,7 +529,6 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
                 type="button"
                 onClick={() => {
                   setMode('register');
-                  setRegisterStep(1);
                   setAuthError(null);
                 }}
                 className={`px-3 py-1 rounded-full font-semibold transition-all text-[11px] cursor-pointer ${
@@ -740,8 +732,8 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
               </div>
             )}
 
-            {/* -------------------- REGISTER MODE (STEP 1) -------------------- */}
-            {mode === 'register' && registerStep === 1 && (
+            {/* -------------------- REGISTER MODE (SINGLE STREAMLINED STEP) -------------------- */}
+            {mode === 'register' && (
               <div className="space-y-3.5 animate-fadeIn">
                 <div>
                   <h1 className="text-xl sm:text-2xl font-bold text-[#1C1917] tracking-tight">
@@ -774,7 +766,7 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
                   </span>
                 </div>
 
-                <form onSubmit={handleRegisterStep1} className="space-y-2.5">
+                <form onSubmit={handleRegisterDirect} className="space-y-2.5">
                   <div className="space-y-1">
                     <label className="block text-xs font-semibold text-[#1C1917]">Full Name</label>
                     <div className="relative group">
@@ -843,126 +835,10 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
 
                   <button
                     type="submit"
-                    className="w-full py-2.5 px-4 bg-[#EA580C] hover:bg-[#C2410C] text-white font-semibold rounded-xl text-xs sm:text-sm shadow-md shadow-orange-500/20 active:scale-[0.99] transition-all flex items-center justify-center space-x-1.5 cursor-pointer mt-1"
-                  >
-                    <span>Continue to Restaurant Details</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </form>
-              </div>
-            )}
-
-            {/* -------------------- REGISTER MODE (STEP 2) -------------------- */}
-            {mode === 'register' && registerStep === 2 && (
-              <div className="space-y-3 animate-fadeIn">
-                <div className="flex items-center space-x-2">
-                  <button
-                    type="button"
-                    onClick={() => setRegisterStep(1)}
-                    className="p-1 hover:bg-[#F7F7F5] rounded-lg text-[#78716C] hover:text-[#1C1917] transition-colors cursor-pointer"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                  </button>
-                  <h1 className="text-lg sm:text-xl font-bold text-[#1C1917] tracking-tight">
-                    Restaurant Details
-                  </h1>
-                </div>
-
-                <form onSubmit={handleRegisterFinal} className="space-y-2.5">
-                  <div className="space-y-1">
-                    <label className="block text-xs font-semibold text-[#1C1917]">Restaurant Name</label>
-                    <div className="relative group">
-                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#A8A29E] group-focus-within:text-[#EA580C] transition-colors">
-                        <Store className="w-3.5 h-3.5" />
-                      </span>
-                      <input
-                        type="text"
-                        required
-                        value={restaurantName}
-                        onChange={(e) => setRestaurantName(e.target.value)}
-                        className="w-full pl-9 pr-3 py-1.5 bg-[#FFFFFF] border border-[#E8E6E4] hover:border-[#D1D5DB] rounded-xl text-xs sm:text-sm text-[#1C1917] placeholder:text-[#A8A29E] focus:outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#EA580C]/15 transition-all"
-                        placeholder="e.g. Royal Biryani & Kebabs"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-xs font-semibold text-[#1C1917]">Business Type</label>
-                    <select
-                      value={bType}
-                      onChange={(e) => setBType(e.target.value as BusinessType)}
-                      className="w-full px-3 py-1.5 bg-[#FFFFFF] border border-[#E8E6E4] hover:border-[#D1D5DB] rounded-xl text-xs sm:text-sm text-[#1C1917] focus:outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#EA580C]/15 transition-all"
-                    >
-                      {businessTypes.map((bt) => (
-                        <option key={bt.type} value={bt.type}>
-                          {bt.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <label className="block text-xs font-semibold text-[#1C1917]">Phone Number</label>
-                      <input
-                        type="tel"
-                        required
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-[#FFFFFF] border border-[#E8E6E4] hover:border-[#D1D5DB] rounded-xl text-xs sm:text-sm text-[#1C1917] placeholder:text-[#A8A29E] focus:outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#EA580C]/15 transition-all"
-                        placeholder="+91 98765 43210"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="block text-xs font-semibold text-[#1C1917]">City</label>
-                      <input
-                        type="text"
-                        required
-                        value={city}
-                        onChange={(e) => setCity(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-[#FFFFFF] border border-[#E8E6E4] hover:border-[#D1D5DB] rounded-xl text-xs sm:text-sm text-[#1C1917] placeholder:text-[#A8A29E] focus:outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#EA580C]/15 transition-all"
-                        placeholder="Bengaluru"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Dining Floor Capacity */}
-                  <div className="space-y-1">
-                    <label className="block text-xs font-semibold text-[#1C1917] flex items-center justify-between">
-                      <span>Dining Tables Setup</span>
-                      <span className="text-[10px] text-[#EA580C] font-semibold">{tableCount} Tables Configured</span>
-                    </label>
-                    <div className="grid grid-cols-5 gap-1.5">
-                      {[4, 8, 12, 16, 24].map((num) => (
-                        <button
-                          key={num}
-                          type="button"
-                          onClick={() => setTableCount(num)}
-                          className={`py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-                            tableCount === num
-                              ? 'bg-[#EA580C] text-white border-[#EA580C] shadow-xs'
-                              : 'bg-white text-[#1C1917] border-[#E8E6E4] hover:border-[#D1D5DB]'
-                          }`}
-                        >
-                          {num}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {authError && (
-                    <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start space-x-1.5">
-                      <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
-                      <span className="leading-tight">{authError}</span>
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
                     disabled={loading}
-                    className="w-full mt-1 py-2.5 px-4 bg-[#EA580C] hover:bg-[#C2410C] text-white font-semibold rounded-xl text-xs sm:text-sm shadow-md shadow-orange-500/20 active:scale-[0.99] transition-all flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="w-full py-2.5 px-4 bg-[#EA580C] hover:bg-[#C2410C] text-white font-semibold rounded-xl text-xs sm:text-sm shadow-md shadow-orange-500/20 active:scale-[0.99] transition-all flex items-center justify-center space-x-1.5 cursor-pointer mt-1 disabled:opacity-70 disabled:cursor-not-allowed"
                   >
-                    <span>{loading ? 'Creating Restaurant Workspace...' : 'Complete Registration'}</span>
+                    <span>{loading ? 'Creating Account & Starting Wizard...' : 'Continue to Restaurant Setup Wizard'}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </form>
@@ -979,7 +855,6 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
                   type="button"
                   onClick={() => {
                     setMode('register');
-                    setRegisterStep(1);
                     setAuthError(null);
                   }}
                   className="text-[#EA580C] font-semibold hover:underline cursor-pointer"

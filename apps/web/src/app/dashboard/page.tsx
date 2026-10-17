@@ -88,6 +88,7 @@ function DashboardContent() {
   const {
     profile,
     session,
+    currentTenant,
     businessType,
     enabledModules = [],
     tables,
@@ -102,12 +103,32 @@ function DashboardContent() {
     updateTableStatus,
   } = useApp();
 
-  // Guard: If restaurant tenant is approved but onboarding wizard not completed, forward to wizard
+  // Guard: If restaurant tenant is pending or onboarding wizard not completed, forward to wizard or approval
+  const isPending = (currentTenant as any)?.status === 'PENDING' || (profile as any)?.status === 'PENDING';
+  const isIncomplete = profile?.onboardingCompleted === false;
+
   useEffect(() => {
-    if (profile && profile.tenantId && profile.onboardingCompleted === false) {
-      router.replace(`/onboarding?tenantId=${profile.tenantId}&email=${encodeURIComponent(profile.email || '')}`);
+    if (!session?.isSuperAdmin) {
+      if (isIncomplete) {
+        router.replace(`/onboarding?tenantId=${profile?.tenantId || currentTenant?.id || ''}&email=${encodeURIComponent(profile?.email || session?.email || '')}`);
+      } else if (isPending) {
+        router.replace(`/pending-approval?tenantId=${profile?.tenantId || currentTenant?.id || ''}&email=${encodeURIComponent(profile?.email || session?.email || '')}`);
+      }
     }
-  }, [profile, router]);
+  }, [profile, currentTenant, session, isPending, isIncomplete, router]);
+
+  if (!session?.isSuperAdmin && (isIncomplete || isPending)) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FDFCFB] font-sans">
+        <div className="flex flex-col items-center space-y-4 text-center">
+          <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs text-[#78716C]">
+            {isIncomplete ? 'Redirecting to Restaurant Setup Wizard...' : 'Redirecting to Admin Approval Screen...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const isModuleActive = (token: string) => {
     const t = token.toLowerCase();

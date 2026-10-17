@@ -49,10 +49,7 @@ import {
   Lock,
   Sliders,
   ExternalLink,
-  Mail,
-  Monitor,
-  CheckCircle2,
-  Sparkles,
+  Loader2,
 } from 'lucide-react';
 import { BusinessType } from '@platform/types';
 import { ZipBillLogo } from '@/components/brand/ZipBillLogo';
@@ -128,6 +125,7 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
     pathname === '/pending-approval' ||
     pathname === '/verify-email' ||
     pathname === '/onboarding' ||
+    pathname?.startsWith('/auth') ||
     pathname?.startsWith('/admin') ||
     pathname?.startsWith('/tarun/admin');
 
@@ -320,8 +318,111 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
     }
   }, [isPublicPage, session?.userId, session?.email, router]);
 
+  // STRICT WORKFLOW GUARD:
+  // Register -> Wizard (/onboarding) -> Admin Review (/pending-approval) -> Admin Approves -> Dashboard (/dashboard)
+  // Dashboard is strictly inaccessible until Super Admin reviews and approves on port 9000!
+  React.useEffect(() => {
+    if (!isPublicPage && (session?.userId || session?.email)) {
+      let storedTenant: any = null;
+      try {
+        const raw = localStorage.getItem('saas_active_tenant');
+        if (raw) storedTenant = JSON.parse(raw);
+      } catch {}
+
+      let storedPending: any = null;
+      try {
+        const raw = localStorage.getItem('saas_pending_registration');
+        if (raw) storedPending = JSON.parse(raw);
+      } catch {}
+
+      let storedProfile: any = null;
+      try {
+        const raw = localStorage.getItem('saas_active_profile');
+        if (raw) storedProfile = JSON.parse(raw);
+      } catch {}
+
+      const activeStatus = (currentTenant as any)?.status || storedTenant?.status || (storedPending ? 'PENDING' : null);
+      const activeTenantId = profile.tenantId || session.tenantId || currentTenant?.id || storedTenant?.id || storedPending?.tenantId;
+      const activeEmail = session.email || storedPending?.email;
+      const isComplete = profile.onboardingCompleted || storedProfile?.onboardingCompleted || storedPending?.onboardingCompleted;
+
+      if (activeStatus === 'PENDING' && !session.isSuperAdmin) {
+        if (!isComplete) {
+          router.replace(`/onboarding?tenantId=${activeTenantId || ''}&email=${encodeURIComponent(activeEmail || '')}`);
+        } else {
+          router.replace(`/pending-approval?tenantId=${activeTenantId || ''}&email=${encodeURIComponent(activeEmail || '')}`);
+        }
+      }
+    }
+  }, [isPublicPage, session?.userId, session?.email, session?.tenantId, session?.isSuperAdmin, profile.tenantId, profile.onboardingCompleted, currentTenant?.id, (currentTenant as any)?.status, router]);
+
   if (isPublicPage) {
     return <div className="min-h-screen w-full bg-background text-main overflow-x-hidden font-sans">{children}</div>;
+  }
+
+  // STRICT WORKFLOW & ONBOARDING ENFORCER:
+  // Register / Google Login -> Setup Wizard (/onboarding) -> Admin Review (/pending-approval) -> Admin Approves -> Dashboard (/dashboard)
+  // Dashboard is strictly inaccessible and preview is completely blocked until BOTH:
+  // 1. Setup Wizard is completed (onboardingCompleted === true)
+  // 2. Administrator has approved the registration (status !== 'PENDING')
+  let isAwaitingWizardOrApproval = false;
+  let guardRedirectUrl: string | null = null;
+
+  if (!session?.isSuperAdmin) {
+    let storedTenant: any = null;
+    let storedPending: any = null;
+    let storedProfile: any = null;
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('saas_active_tenant');
+        if (raw) storedTenant = JSON.parse(raw);
+      } catch {}
+      try {
+        const raw = localStorage.getItem('saas_pending_registration');
+        if (raw) storedPending = JSON.parse(raw);
+      } catch {}
+      try {
+        const raw = localStorage.getItem('saas_active_profile');
+        if (raw) storedProfile = JSON.parse(raw);
+      } catch {}
+    }
+
+    const activeStatus = (currentTenant as any)?.status || storedTenant?.status || (storedPending ? 'PENDING' : null);
+    const activeTenantId = profile?.tenantId || session?.tenantId || currentTenant?.id || storedTenant?.id || storedPending?.tenantId;
+    const activeEmail = session?.email || storedPending?.email;
+    const isComplete = profile?.onboardingCompleted ?? storedProfile?.onboardingCompleted ?? storedPending?.onboardingCompleted;
+
+    if (activeStatus === 'PENDING' || isComplete === false) {
+      isAwaitingWizardOrApproval = true;
+      if (isComplete === false) {
+        guardRedirectUrl = `/onboarding?tenantId=${activeTenantId || ''}&email=${encodeURIComponent(activeEmail || '')}`;
+      } else {
+        guardRedirectUrl = `/pending-approval?tenantId=${activeTenantId || ''}&email=${encodeURIComponent(activeEmail || '')}`;
+      }
+    }
+  }
+
+  if (isAwaitingWizardOrApproval && guardRedirectUrl) {
+    if (typeof window !== 'undefined') {
+      window.location.replace(guardRedirectUrl);
+    }
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FDFCFB] font-sans">
+        <div className="flex flex-col items-center space-y-4 text-center">
+          <Loader2 className="w-10 h-10 animate-spin text-[#EA580C]" />
+          <div>
+            <h2 className="text-base font-bold text-[#1C1917]">
+              {guardRedirectUrl.includes('/onboarding') ? 'Opening Restaurant Setup Wizard...' : 'Awaiting Administrator Approval...'}
+            </h2>
+            <p className="text-xs text-[#78716C] mt-1">
+              {guardRedirectUrl.includes('/onboarding')
+                ? 'Please complete your restaurant setup before accessing the dashboard.'
+                : 'Your restaurant registration is under review by the platform administrator.'}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const handleLogout = async () => {

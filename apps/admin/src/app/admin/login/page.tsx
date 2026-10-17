@@ -120,9 +120,6 @@ export default function SuperAdminLoginPage() {
               <h1 className="text-xl sm:text-2xl font-bold text-[#1C1917] tracking-tight">
                 Welcome to ZipBill Admin
               </h1>
-              <p className="text-xs text-[#78716C] mt-0.5">
-                Master SaaS Root Control Plane
-              </p>
             </div>
 
             {/* Error Message Alert */}
@@ -137,21 +134,9 @@ export default function SuperAdminLoginPage() {
             <form onSubmit={handleAdminLogin} className="space-y-3.5">
               {/* Email Input */}
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-sm font-semibold text-[#1C1917]">
-                    Admin Email
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEmail('tarunuttupulusu@gmail.com');
-                      setPassword('tarun2314638');
-                    }}
-                    className="text-[11px] font-semibold text-[#EA580C] hover:text-[#C2410C] hover:underline cursor-pointer"
-                  >
-                    Auto-Fill Super Admin
-                  </button>
-                </div>
+                <label className="block text-sm font-semibold text-[#1C1917]">
+                  Admin Email
+                </label>
                 <div className="relative group">
                   <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#A8A29E] group-focus-within:text-[#EA580C] transition-colors">
                     <Mail className="w-4 h-4" />

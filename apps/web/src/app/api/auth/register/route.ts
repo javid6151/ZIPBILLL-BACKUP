@@ -20,12 +20,16 @@ export async function POST(req: NextRequest) {
       tableCount,
     } = body;
 
-    if (!email || !restaurantName || !fullName) {
+    if (!email || !fullName) {
       return NextResponse.json(
-        { error: 'Full name, email, and restaurant name are required.' },
+        { error: 'Full name and email are required.' },
         { status: 400 }
       );
     }
+
+    const resolvedRestaurantName =
+      (restaurantName && restaurantName.trim()) ||
+      `${fullName.trim()}'s Restaurant`;
 
     // 1. Create User in Supabase Auth (auth.users)
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -56,7 +60,7 @@ export async function POST(req: NextRequest) {
     const authUserId = authData.user.id;
 
     // 2. Generate tenant slug
-    const baseSlug = restaurantName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').slice(0, 30);
+    const baseSlug = resolvedRestaurantName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').slice(0, 30);
     const slug = `${baseSlug}-${Date.now().toString(36)}`;
 
     // 3. Create Tenant, BusinessProfile, User record, and RegistrationRequest in PostgreSQL
@@ -65,7 +69,7 @@ export async function POST(req: NextRequest) {
       const tenant = await tx.tenant.create({
         data: {
           slug,
-          name: restaurantName,
+          name: resolvedRestaurantName,
           businessType: businessType as any,
           status: 'PENDING',
         },
@@ -82,7 +86,7 @@ export async function POST(req: NextRequest) {
       const profile = await tx.businessProfile.create({
         data: {
           tenantId: tenant.id,
-          businessName: restaurantName,
+          businessName: resolvedRestaurantName,
           phone: phone || '',
           email,
           address: address || '',
@@ -246,7 +250,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Registration submitted successfully. Waiting for Platform Admin approval.',
+      message: 'Registration created successfully. Please configure your restaurant setup wizard.',
       userId: authUserId,
       tenantId: result.tenant.id,
       tenant: result.tenant,
@@ -254,7 +258,7 @@ export async function POST(req: NextRequest) {
       user: result.user,
       registrationId: result.registration.id,
       status: 'PENDING',
-      redirect: '/pending-approval',
+      redirect: `/onboarding?tenantId=${result.tenant.id}&email=${encodeURIComponent(email)}`,
     });
   } catch (error: any) {
     console.error('Registration API error:', error);

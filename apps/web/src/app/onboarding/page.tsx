@@ -267,14 +267,34 @@ function OnboardingWizardContent() {
           // Do not auto-fill restaurant profile - user fills in Step 02 manually
           if (data.applicantName) setApplicantOwnerName(data.applicantName);
 
-          // Step 06 Table layout: No defaults - user chooses in Step 06
-          // Step 05 Module activation: No defaults - user manually chooses
+          // Map approved intended platform modules
+          if (Array.isArray(data.intendedModules) && data.intendedModules.length > 0) {
+            const mapped = mapRequestedModulesToWizard(data.intendedModules);
+            setSelectedModules(mapped);
+          }
+        } else if (resolvedTenantId || storedPending || storedTenant) {
+          setApprovalStatus('PENDING');
+          setAuthVerified(true);
+          if (storedPending?.restaurantName) setName(storedPending.restaurantName);
+          else if (storedTenant?.name) setName(storedTenant.name);
+          if (storedPending?.email) setEmail(storedPending.email);
+          if (storedPending?.businessType) setBType(storedPending.businessType);
+          else if (storedTenant?.businessType) setBType(storedTenant.businessType);
+          if (storedPending?.tableCount) setTableCount(Number(storedPending.tableCount));
         } else {
           setApprovalStatus('NOT_FOUND');
         }
       } catch (err) {
         console.error('Error verifying approved tenant status:', err);
-        setApprovalStatus('NOT_FOUND');
+        if (resolvedTenantId || storedPending || storedTenant) {
+          setApprovalStatus('PENDING');
+          setAuthVerified(true);
+          if (storedPending?.restaurantName) setName(storedPending.restaurantName);
+          else if (storedTenant?.name) setName(storedTenant.name);
+          if (storedPending?.email) setEmail(storedPending.email);
+        } else {
+          setApprovalStatus('NOT_FOUND');
+        }
       } finally {
         setLoadingInitial(false);
       }
@@ -588,7 +608,7 @@ function OnboardingWizardContent() {
           </div>
           <h2 className="text-xl font-bold text-[#1C1917]">Application Under Review</h2>
           <p className="text-xs text-[#78716C] leading-relaxed">
-            Your registration for <strong className="text-[#1C1917]">{name || 'Your Restaurant'}</strong> is currently pending verification and activation by our platform team.
+            Your 9-step registration for <strong className="text-[#1C1917]">{name || 'Your Restaurant'}</strong> is currently pending Super Admin review in the Admin Portal.
           </p>
           <div className="pt-2 space-y-2">
             <Link
@@ -1593,7 +1613,7 @@ function OnboardingWizardContent() {
                     Ready for Verification
                   </span>
                   <span className="text-[11px] leading-relaxed block text-[#9A3412]">
-                    All onboarding configuration steps are complete. Clicking below submits your restaurant registration for verification. Once approved, your live POS and dining workspace will be activated immediately.
+                    All 9 onboarding steps are 100% filled. Clicking the button below transmits your registration details directly to the Super Admin portal. Once approved by the administrator, your dynamic restaurant dashboard is immediately generated.
                   </span>
                 </div>
               </div>
