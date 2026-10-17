@@ -88,14 +88,6 @@ function mapRequestedModulesToWizard(requested: string[]): string[] {
     if (lower.includes('report') || lower.includes('analytic')) set.add('REPORTS');
   }
 
-  // Always keep essential POS modules
-  set.add('POS');
-  set.add('ORDERS');
-  set.add('MENU');
-  set.add('BILLING');
-  set.add('PAYMENTS');
-  set.add('AI_MENU_IMPORT');
-
   return Array.from(set);
 }
 
@@ -106,6 +98,7 @@ function OnboardingWizardContent() {
 
   const [step, setStep] = useState<number>(1);
   const [loadingInitial, setLoadingInitial] = useState<boolean>(true);
+  const [mounted, setMounted] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState<boolean>(false);
@@ -182,6 +175,11 @@ function OnboardingWizardContent() {
   const [printerType, setPrinterType] = useState<string>('');
   const [kotPrinter, setKotPrinter] = useState<boolean>(true);
   const [networkIp, setNetworkIp] = useState<string>('192.168.1.100');
+
+  // Client mount lifecycle
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Authentication & Approved Tenant Verification on Mount
   useEffect(() => {
@@ -265,19 +263,8 @@ function OnboardingWizardContent() {
           if (data.tenantId) setTenantId(data.tenantId);
           if (data.slug) setTenantSlug(data.slug);
 
-          // Do not auto-fill restaurant profile - user fills in Step 02 manually
+          // Do not auto-fill restaurant profile or modules - user explicitly selects in Step 05
           if (data.applicantName) setApplicantOwnerName(data.applicantName);
-
-          // Load approved estimated tables
-          if (typeof data.tableCountEst === 'number') {
-            setTableCount(data.tableCountEst);
-            setUsesTables(data.tableCountEst > 0);
-          }
-          // Map approved intended platform modules
-          if (Array.isArray(data.intendedModules) && data.intendedModules.length > 0) {
-            const mapped = mapRequestedModulesToWizard(data.intendedModules);
-            setSelectedModules(mapped);
-          }
         } else if (resolvedTenantId || storedPending || storedTenant) {
           setApprovalStatus('PENDING');
           setAuthVerified(true);
@@ -308,6 +295,13 @@ function OnboardingWizardContent() {
 
     loadTenantData();
   }, [searchParams]);
+
+  // Once approved by admin, the setup wizard should NEVER be accessible - route directly to dashboard
+  useEffect(() => {
+    if (approvalStatus === 'APPROVED' && !loadingInitial) {
+      router.replace('/dashboard');
+    }
+  }, [approvalStatus, loadingInitial, router]);
 
   // Handlers
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -536,6 +530,8 @@ function OnboardingWizardContent() {
           tableCountEst: usesTables === true && typeof tableCount === 'number' ? tableCount : 0,
           requestedModules: selectedModules,
           submittedAt: new Date().toISOString(),
+          wizardSubmitted: true,
+          onboardingCompleted: true,
         }));
       }
 
@@ -563,8 +559,8 @@ function OnboardingWizardContent() {
     }
   };
 
-  // Protected View 1: Initial Loading
-  if (loadingInitial) {
+  // Protected View 1: Initial Loading or Hydrating
+  if (!mounted || loadingInitial) {
     return (
       <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center space-y-3">
         <Loader2 className="w-10 h-10 animate-spin text-[#EA580C]" />
@@ -607,7 +603,33 @@ function OnboardingWizardContent() {
     );
   }
 
-  // Protected View 3: Awaiting Admin Approval ONLY if the wizard was already submitted
+  // Protected View 3: If already APPROVED by Admin, the wizard is completed and closed
+  if (approvalStatus === 'APPROVED') {
+    return (
+      <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-3xl border border-[#E8E6E4] shadow-sm p-8 text-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto">
+            <CheckCircle2 className="w-7 h-7" />
+          </div>
+          <h2 className="text-xl font-bold text-[#1C1917]">Workspace Already Activated</h2>
+          <p className="text-xs text-[#78716C] leading-relaxed">
+            Your restaurant setup for <strong className="text-[#1C1917]">{name || 'Your Restaurant'}</strong> has already been approved and activated. The setup wizard is completed.
+          </p>
+          <div className="pt-2">
+            <Link
+              href="/dashboard"
+              className="w-full py-3 px-4 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white font-bold text-xs flex items-center justify-center space-x-2 shadow-md transition"
+            >
+              <span>Go to Dashboard</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Protected View 4: Awaiting Admin Approval ONLY if the wizard was already submitted
   if (approvalStatus === 'PENDING' && isOnboardingDone) {
     return (
       <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center p-4">
@@ -617,7 +639,7 @@ function OnboardingWizardContent() {
           </div>
           <h2 className="text-xl font-bold text-[#1C1917]">Application Under Review</h2>
           <p className="text-xs text-[#78716C] leading-relaxed">
-            Your 9-step registration for <strong className="text-[#1C1917]">{name || 'Your Restaurant'}</strong> is currently pending Super Admin review in the Admin Portal.
+            Your registration for <strong className="text-[#1C1917]">{name || 'Your Restaurant'}</strong> is currently pending review by our platform administration team.
           </p>
           <div className="pt-2 space-y-2">
             <Link
@@ -712,6 +734,7 @@ function OnboardingWizardContent() {
                   return (
                     <button
                       key={item.type}
+                      id={`biz-model-${item.type.toLowerCase()}`}
                       type="button"
                       onClick={() => {
                         const newType = item.type as BusinessType;
@@ -947,6 +970,7 @@ function OnboardingWizardContent() {
                   return (
                     <div
                       key={s.name}
+                      id={`service-${s.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
                       onClick={() => toggleService(s.name)}
                       className={`flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all ${
                         active
@@ -1018,6 +1042,7 @@ function OnboardingWizardContent() {
                   return (
                     <button
                       key={mod.token}
+                      id={`module-card-${mod.token.toLowerCase()}`}
                       type="button"
                       onClick={() => toggleModuleSelection(mod.token)}
                       className={`flex items-center space-x-2.5 p-3.5 rounded-2xl border text-left transition-all ${
@@ -1658,6 +1683,7 @@ function OnboardingWizardContent() {
 
             {step < 9 ? (
               <button
+                id="wizard-continue-btn"
                 type="button"
                 onClick={() => {
                   if (step === 1 && !bType) return;

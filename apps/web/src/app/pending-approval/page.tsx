@@ -16,7 +16,6 @@ import {
   Mail,
   MapPin,
   Sparkles,
-  ExternalLink,
 } from 'lucide-react';
 import { ZipBillLogo } from '@/components/brand/ZipBillLogo';
 
@@ -147,9 +146,7 @@ function PendingApprovalContent() {
       setRedirectCountdown((prev) => {
         if (prev === null || prev <= 1) {
           clearInterval(interval);
-          const targetUrl = onboardingCompleted
-            ? '/dashboard'
-            : `/onboarding?tenantId=${tenantId}&email=${encodeURIComponent(email)}`;
+          const targetUrl = '/dashboard';
           if (typeof window !== 'undefined') {
             window.location.href = targetUrl;
           } else {
@@ -162,7 +159,7 @@ function PendingApprovalContent() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [status, onboardingCompleted, tenantId, email, router]);
+  }, [status, router]);
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#1C1917] flex flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8 font-sans selection:bg-[#EA580C]/20">
@@ -284,21 +281,21 @@ function PendingApprovalContent() {
                 </div>
               </div>
 
-              {/* Incomplete Wizard Action Banner */}
-              {!onboardingCompleted && (
+              {/* Incomplete Wizard Action Banner (only if never filled) */}
+              {!onboardingCompleted && tableCountEst === null && intendedModules.length === 0 && !submittedAt && (
                 <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-left space-y-2.5">
                   <div className="flex items-center space-x-2 text-amber-900 font-bold text-xs">
                     <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
                     <span>Restaurant Setup Wizard Required</span>
                   </div>
                   <p className="text-xs text-amber-800 leading-relaxed">
-                    You have not submitted the 9-step setup wizard yet. The Super Admin needs your business details, tables, staff, and module selections to approve your restaurant.
+                    Please submit your 9-step configuration to enable administrator verification.
                   </p>
                   <Link
                     href={`/onboarding?tenantId=${tenantId}&email=${encodeURIComponent(email)}`}
                     className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white text-xs font-bold transition shadow-md"
                   >
-                    <span>Open Restaurant Setup Wizard (Step 1 of 9)</span>
+                    <span>Open Restaurant Setup Wizard</span>
                     <ArrowRight className="w-4 h-4" />
                   </Link>
                 </div>
@@ -308,7 +305,7 @@ function PendingApprovalContent() {
               <div className="p-3.5 rounded-xl bg-orange-50/70 border border-orange-200/60 text-left flex items-start space-x-3 text-xs text-[#9A3412]">
                 <ShieldCheck className="w-4 h-4 text-[#EA580C] shrink-0 mt-0.5" />
                 <p className="leading-relaxed">
-                  <strong>Workflow Rule:</strong> The Super Admin must review and click <strong>Approve</strong> in the Admin Control Plane. Until then, login to the workspace is restricted.
+                  <strong>Verification in Progress:</strong> Our administration team reviews every restaurant profile to ensure compliance and configure your payment & printer settings. You will be redirected immediately once approved.
                 </p>
               </div>
 
@@ -323,24 +320,6 @@ function PendingApprovalContent() {
                   <RefreshCw className={`w-4 h-4 ${checking ? 'animate-spin' : ''}`} />
                   <span>{checking ? 'Checking Status...' : 'Check Approval Status'}</span>
                 </button>
-
-                {/* Direct Link to Admin Panel */}
-                <div className="pt-2">
-                  <a
-                    href={
-                      process.env.NEXT_PUBLIC_ADMIN_URL ||
-                      (typeof window !== 'undefined' && window.location.hostname.includes('localhost')
-                        ? 'http://localhost:9000'
-                        : '/tarun/admin')
-                    }
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full py-2.5 px-4 rounded-xl bg-amber-50 hover:bg-amber-100 text-[#92400E] border border-amber-300/80 text-xs font-bold flex items-center justify-center space-x-2 transition"
-                  >
-                    <span>Open Admin Panel to Approve</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                </div>
 
                 <div className="pt-2 flex items-center justify-center space-x-4 text-xs text-[#78716C]">
                   <Link href="/login" className="hover:text-[#EA580C] font-semibold transition">
@@ -369,54 +348,25 @@ function PendingApprovalContent() {
                   Congratulations! Restaurant Approved
                 </h1>
                 <p className="text-sm text-[#78716C] max-w-md mx-auto leading-relaxed">
-                  Your restaurant workspace for <strong className="text-[#1C1917]">{restaurantName}</strong> has been officially approved! {onboardingCompleted ? 'You can proceed directly to your restaurant dashboard.' : 'Complete the Setup Wizard to configure your business model, tables, menu, and dashboard.'}
+                  Your restaurant workspace for <strong className="text-[#1C1917]">{restaurantName}</strong> has been officially approved! Your live POS and dining dashboard is ready.
                 </p>
-                {redirectCountdown !== null && redirectCountdown > 0 && !onboardingCompleted && (
-                  <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-orange-50 text-[#EA580C] border border-orange-200 animate-pulse">
+                {redirectCountdown !== null && redirectCountdown > 0 && (
+                  <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 animate-pulse">
                     <Sparkles className="w-3.5 h-3.5" />
-                    <span>Opening Restaurant Setup Wizard in {redirectCountdown}s...</span>
+                    <span>Opening Restaurant Dashboard in {redirectCountdown}s...</span>
                   </div>
                 )}
               </div>
 
               <div className="pt-4 space-y-3">
-                {!onboardingCompleted ? (
-                  <>
-                    <Link
-                      href={`/onboarding?tenantId=${tenantId}&email=${encodeURIComponent(email)}`}
-                      className="w-full py-3.5 px-6 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white font-bold text-sm flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transition-all"
-                    >
-                      <Sparkles className="w-4 h-4" />
-                      <span>Start Restaurant Setup Wizard (Step 1 of 9)</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </Link>
-
-                    <Link
-                      href="/dashboard"
-                      className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-stone-50 border border-[#E8E6E4] text-[#78716C] hover:text-[#1C1917] font-semibold text-xs flex items-center justify-center space-x-1.5 transition"
-                    >
-                      <span>Skip Directly to Default Dashboard</span>
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    <Link
-                      href="/dashboard"
-                      className="w-full py-3.5 px-6 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white font-bold text-sm flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transition-all"
-                    >
-                      <Sparkles className="w-4 h-4" />
-                      <span>Enter Restaurant Dashboard</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </Link>
-
-                    <Link
-                      href={`/onboarding?tenantId=${tenantId}&email=${encodeURIComponent(email)}`}
-                      className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-stone-50 border border-[#E8E6E4] text-[#1C1917] font-semibold text-xs flex items-center justify-center space-x-1.5 transition"
-                    >
-                      <span>Re-open Setup Wizard</span>
-                    </Link>
-                  </>
-                )}
+                <Link
+                  href="/dashboard"
+                  className="w-full py-3.5 px-6 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white font-bold text-sm flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transition-all"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Enter Restaurant Dashboard</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
               </div>
             </>
           ) : (

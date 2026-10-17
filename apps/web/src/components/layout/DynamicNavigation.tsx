@@ -346,12 +346,13 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
       } catch {}
 
       const activeStatus = (currentTenant as any)?.status || storedTenant?.status || (storedPending ? 'PENDING' : null);
+      const isApproved = activeStatus === 'APPROVED';
       const activeTenantId = profile.tenantId || session.tenantId || currentTenant?.id || storedTenant?.id || storedPending?.tenantId;
       const activeEmail = session.email || storedPending?.email;
       const isComplete = profile.onboardingCompleted || storedProfile?.onboardingCompleted || storedPending?.onboardingCompleted;
 
-      if (activeStatus === 'PENDING' && !session.isSuperAdmin) {
-        if (!isComplete) {
+      if (!isApproved && activeStatus === 'PENDING' && !session.isSuperAdmin) {
+        if (!isComplete && !storedPending?.wizardSubmitted) {
           router.replace(`/onboarding?tenantId=${activeTenantId || ''}&email=${encodeURIComponent(activeEmail || '')}`);
         } else {
           router.replace(`/pending-approval?tenantId=${activeTenantId || ''}&email=${encodeURIComponent(activeEmail || '')}`);
@@ -368,7 +369,7 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
   // Register / Google Login -> Setup Wizard (/onboarding) -> Admin Review (/pending-approval) -> Admin Approves -> Dashboard (/dashboard)
   // Dashboard is strictly inaccessible and preview is completely blocked until BOTH:
   // 1. Setup Wizard is completed (onboardingCompleted === true)
-  // 2. Administrator has approved the registration (status !== 'PENDING')
+  // 2. Administrator has approved the registration (status === 'APPROVED')
   let isAwaitingWizardOrApproval = false;
   let guardRedirectUrl: string | null = null;
 
@@ -392,13 +393,14 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
     }
 
     const activeStatus = (currentTenant as any)?.status || storedTenant?.status || (storedPending ? 'PENDING' : null);
+    const isApproved = activeStatus === 'APPROVED';
     const activeTenantId = profile?.tenantId || session?.tenantId || currentTenant?.id || storedTenant?.id || storedPending?.tenantId;
     const activeEmail = session?.email || storedPending?.email;
     const isComplete = profile?.onboardingCompleted ?? storedProfile?.onboardingCompleted ?? storedPending?.onboardingCompleted;
 
-    if (activeStatus === 'PENDING' || isComplete === false) {
+    if (!isApproved && activeStatus === 'PENDING') {
       isAwaitingWizardOrApproval = true;
-      if (isComplete === false) {
+      if (isComplete === false && !storedPending?.wizardSubmitted) {
         guardRedirectUrl = `/onboarding?tenantId=${activeTenantId || ''}&email=${encodeURIComponent(activeEmail || '')}`;
       } else {
         guardRedirectUrl = `/pending-approval?tenantId=${activeTenantId || ''}&email=${encodeURIComponent(activeEmail || '')}`;
