@@ -44,7 +44,6 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
 
   // Mode: 'login' or 'register'
   const [mode, setMode] = useState<'login' | 'register'>(defaultMode);
-  const [registerStep, setRegisterStep] = useState<1 | 2>(1);
 
   // Common & Login State
   const [email, setEmail] = useState('');
@@ -394,7 +393,7 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
     }
   };
 
-  const handleRegisterStep1 = (e: React.FormEvent) => {
+  const handleRegisterDirect = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
       setAuthError('Passwords do not match. Please verify your password.');
@@ -404,42 +403,41 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
       setAuthError('Password must be at least 6 characters.');
       return;
     }
-    setAuthError(null);
-    setRegisterStep(2);
-  };
 
-  const handleRegisterFinal = async (e: React.FormEvent) => {
-    e.preventDefault();
     setLoading(true);
     setAuthError(null);
+
+    const cleanEmail = email.trim();
+    const cleanName = fullName.trim();
+    const defaultRestName = `${cleanName}'s Restaurant`;
 
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fullName,
-          email: email.trim(),
+          fullName: cleanName,
+          email: cleanEmail,
           password,
-          restaurantName,
-          businessType: bType,
-          phone,
-          city: city || 'Bengaluru',
+          restaurantName: defaultRestName,
+          businessType: 'RESTAURANT',
+          phone: '',
+          city: 'Bengaluru',
           country: 'India',
-          tableCount,
+          tableCount: 8,
         }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to register restaurant.');
+        throw new Error(data.error || 'Failed to register account.');
       }
 
       const activeSessionObj = {
         ...session,
         tenantId: data.tenantId,
-        fullName,
-        email: email.trim(),
+        fullName: cleanName,
+        email: cleanEmail,
         roleName: 'OWNER',
         permissions: ['*'],
         userId: data.userId,
@@ -450,24 +448,24 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
           'saas_pending_registration',
           JSON.stringify({
             tenantId: data.tenantId,
-            restaurantName,
-            email: email.trim(),
-            phone,
-            city: city || 'Bengaluru',
-            businessType: bType,
-            tableCount,
+            restaurantName: defaultRestName,
+            email: cleanEmail,
+            phone: '',
+            city: 'Bengaluru',
+            businessType: 'RESTAURANT',
+            tableCount: 8,
             submittedAt: new Date().toISOString(),
             onboardingCompleted: false,
           })
         );
         localStorage.setItem('saas_active_session', JSON.stringify(activeSessionObj));
         if (data.tenant) localStorage.setItem('saas_active_tenant', JSON.stringify(data.tenant));
-        localStorage.setItem('saas_active_business_type', bType);
+        localStorage.setItem('saas_active_business_type', 'RESTAURANT');
         document.cookie = 'saas_session_active=true; path=/; max-age=604800; SameSite=Lax';
       } catch {}
 
       // Flow: Login/Register -> Setup Wizard (between them) -> Admin Review -> Approval
-      const wizardUrl = `/onboarding?tenantId=${data.tenantId}&email=${encodeURIComponent(email.trim())}`;
+      const wizardUrl = `/onboarding?tenantId=${data.tenantId}&email=${encodeURIComponent(cleanEmail)}`;
       if (typeof window !== 'undefined') {
         window.location.replace(wizardUrl);
       } else {
@@ -529,7 +527,6 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
                 type="button"
                 onClick={() => {
                   setMode('register');
-                  setRegisterStep(1);
                   setAuthError(null);
                 }}
                 className={`px-3 py-1 rounded-full font-semibold transition-all text-[11px] cursor-pointer ${
@@ -732,8 +729,8 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
               </div>
             )}
 
-            {/* -------------------- REGISTER MODE (STEP 1) -------------------- */}
-            {mode === 'register' && registerStep === 1 && (
+            {/* -------------------- REGISTER MODE (SINGLE STREAMLINED STEP) -------------------- */}
+            {mode === 'register' && (
               <div className="space-y-3.5 animate-fadeIn">
                 <div>
                   <h1 className="text-xl sm:text-2xl font-bold text-[#1C1917] tracking-tight">
@@ -766,7 +763,7 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
                   </span>
                 </div>
 
-                <form onSubmit={handleRegisterStep1} className="space-y-2.5">
+                <form onSubmit={handleRegisterDirect} className="space-y-2.5">
                   <div className="space-y-1">
                     <label className="block text-xs font-semibold text-[#1C1917]">Full Name</label>
                     <div className="relative group">
@@ -835,126 +832,10 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
 
                   <button
                     type="submit"
-                    className="w-full py-2.5 px-4 bg-[#EA580C] hover:bg-[#C2410C] text-white font-semibold rounded-xl text-xs sm:text-sm shadow-md shadow-orange-500/20 active:scale-[0.99] transition-all flex items-center justify-center space-x-1.5 cursor-pointer mt-1"
-                  >
-                    <span>Continue to Restaurant Details</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </form>
-              </div>
-            )}
-
-            {/* -------------------- REGISTER MODE (STEP 2) -------------------- */}
-            {mode === 'register' && registerStep === 2 && (
-              <div className="space-y-3 animate-fadeIn">
-                <div className="flex items-center space-x-2">
-                  <button
-                    type="button"
-                    onClick={() => setRegisterStep(1)}
-                    className="p-1 hover:bg-[#F7F7F5] rounded-lg text-[#78716C] hover:text-[#1C1917] transition-colors cursor-pointer"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                  </button>
-                  <h1 className="text-lg sm:text-xl font-bold text-[#1C1917] tracking-tight">
-                    Restaurant Details
-                  </h1>
-                </div>
-
-                <form onSubmit={handleRegisterFinal} className="space-y-2.5">
-                  <div className="space-y-1">
-                    <label className="block text-xs font-semibold text-[#1C1917]">Restaurant Name</label>
-                    <div className="relative group">
-                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#A8A29E] group-focus-within:text-[#EA580C] transition-colors">
-                        <Store className="w-3.5 h-3.5" />
-                      </span>
-                      <input
-                        type="text"
-                        required
-                        value={restaurantName}
-                        onChange={(e) => setRestaurantName(e.target.value)}
-                        className="w-full pl-9 pr-3 py-1.5 bg-[#FFFFFF] border border-[#E8E6E4] hover:border-[#D1D5DB] rounded-xl text-xs sm:text-sm text-[#1C1917] placeholder:text-[#A8A29E] focus:outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#EA580C]/15 transition-all"
-                        placeholder="e.g. Royal Biryani & Kebabs"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-xs font-semibold text-[#1C1917]">Business Type</label>
-                    <select
-                      value={bType}
-                      onChange={(e) => setBType(e.target.value as BusinessType)}
-                      className="w-full px-3 py-1.5 bg-[#FFFFFF] border border-[#E8E6E4] hover:border-[#D1D5DB] rounded-xl text-xs sm:text-sm text-[#1C1917] focus:outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#EA580C]/15 transition-all"
-                    >
-                      {businessTypes.map((bt) => (
-                        <option key={bt.type} value={bt.type}>
-                          {bt.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <label className="block text-xs font-semibold text-[#1C1917]">Phone Number</label>
-                      <input
-                        type="tel"
-                        required
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-[#FFFFFF] border border-[#E8E6E4] hover:border-[#D1D5DB] rounded-xl text-xs sm:text-sm text-[#1C1917] placeholder:text-[#A8A29E] focus:outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#EA580C]/15 transition-all"
-                        placeholder="+91 98765 43210"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="block text-xs font-semibold text-[#1C1917]">City</label>
-                      <input
-                        type="text"
-                        required
-                        value={city}
-                        onChange={(e) => setCity(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-[#FFFFFF] border border-[#E8E6E4] hover:border-[#D1D5DB] rounded-xl text-xs sm:text-sm text-[#1C1917] placeholder:text-[#A8A29E] focus:outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#EA580C]/15 transition-all"
-                        placeholder="Bengaluru"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Dining Floor Capacity */}
-                  <div className="space-y-1">
-                    <label className="block text-xs font-semibold text-[#1C1917] flex items-center justify-between">
-                      <span>Dining Tables Setup</span>
-                      <span className="text-[10px] text-[#EA580C] font-semibold">{tableCount} Tables Configured</span>
-                    </label>
-                    <div className="grid grid-cols-5 gap-1.5">
-                      {[4, 8, 12, 16, 24].map((num) => (
-                        <button
-                          key={num}
-                          type="button"
-                          onClick={() => setTableCount(num)}
-                          className={`py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-                            tableCount === num
-                              ? 'bg-[#EA580C] text-white border-[#EA580C] shadow-xs'
-                              : 'bg-white text-[#1C1917] border-[#E8E6E4] hover:border-[#D1D5DB]'
-                          }`}
-                        >
-                          {num}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {authError && (
-                    <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start space-x-1.5">
-                      <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
-                      <span className="leading-tight">{authError}</span>
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
                     disabled={loading}
-                    className="w-full mt-1 py-2.5 px-4 bg-[#EA580C] hover:bg-[#C2410C] text-white font-semibold rounded-xl text-xs sm:text-sm shadow-md shadow-orange-500/20 active:scale-[0.99] transition-all flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="w-full py-2.5 px-4 bg-[#EA580C] hover:bg-[#C2410C] text-white font-semibold rounded-xl text-xs sm:text-sm shadow-md shadow-orange-500/20 active:scale-[0.99] transition-all flex items-center justify-center space-x-1.5 cursor-pointer mt-1 disabled:opacity-70 disabled:cursor-not-allowed"
                   >
-                    <span>{loading ? 'Creating Restaurant Workspace...' : 'Complete Registration'}</span>
+                    <span>{loading ? 'Creating Account & Starting Wizard...' : 'Continue to Restaurant Setup Wizard'}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </form>
@@ -971,7 +852,6 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
                   type="button"
                   onClick={() => {
                     setMode('register');
-                    setRegisterStep(1);
                     setAuthError(null);
                   }}
                   className="text-[#EA580C] font-semibold hover:underline cursor-pointer"
