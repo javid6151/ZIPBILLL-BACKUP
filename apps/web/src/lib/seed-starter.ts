@@ -1,30 +1,56 @@
 import { prisma } from '@platform/database';
 
-export async function seedTenantStarterData(tenantId: string, businessType: string = 'RESTAURANT') {
+export async function seedTenantStarterData(
+  tenantId: string,
+  businessType: string = 'RESTAURANT',
+  customTableCount?: number
+) {
   try {
+    const targetCount = customTableCount && customTableCount > 0 ? customTableCount : 8;
     // 1. Dining Tables
     const existingTableCount = await prisma.table.count({ where: { tenantId } });
-    if (existingTableCount === 0) {
-      const defaultTables = [
-        { tableNumber: '1', tableName: 'Table 1', capacity: 4, status: 'AVAILABLE' as const, sortOrder: 1 },
-        { tableNumber: '2', tableName: 'Table 2', capacity: 2, status: 'OCCUPIED' as const, sortOrder: 2 },
-        { tableNumber: '3', tableName: 'Table 3', capacity: 6, status: 'AVAILABLE' as const, sortOrder: 3 },
-        { tableNumber: '4', tableName: 'Table 4', capacity: 4, status: 'AVAILABLE' as const, sortOrder: 4 },
-        { tableNumber: '5', tableName: 'Table 5', capacity: 2, status: 'AVAILABLE' as const, sortOrder: 5 },
-        { tableNumber: '6', tableName: 'VIP 1', capacity: 8, status: 'RESERVED' as const, sortOrder: 6 },
-        { tableNumber: '7', tableName: 'Terrace 1', capacity: 4, status: 'AVAILABLE' as const, sortOrder: 7 },
-        { tableNumber: '8', tableName: 'Terrace 2', capacity: 4, status: 'AVAILABLE' as const, sortOrder: 8 },
-      ];
 
-      for (const t of defaultTables) {
+    if (existingTableCount === 0 || (customTableCount && customTableCount !== existingTableCount)) {
+      if (existingTableCount > 0 && customTableCount) {
+        // Safely clear previous empty tables when re-configuring
+        try {
+          await prisma.table.deleteMany({ where: { tenantId } });
+        } catch {}
+      }
+
+      // Ensure dining floor sections
+      let mainSec = await prisma.tableSection.findFirst({ where: { tenantId, name: 'Main Dining' } });
+      if (!mainSec) {
+        mainSec = await prisma.tableSection.create({ data: { tenantId, name: 'Main Dining', sortOrder: 1 } });
+      }
+
+      let acSec = await prisma.tableSection.findFirst({ where: { tenantId, name: 'AC Hall' } });
+      if (!acSec) {
+        acSec = await prisma.tableSection.create({ data: { tenantId, name: 'AC Hall', sortOrder: 2 } });
+      }
+
+      let terraceSec = await prisma.tableSection.findFirst({ where: { tenantId, name: 'Terrace Garden' } });
+      if (!terraceSec) {
+        terraceSec = await prisma.tableSection.create({ data: { tenantId, name: 'Terrace Garden', sortOrder: 3 } });
+      }
+
+      const sections = [mainSec, acSec, terraceSec];
+
+      for (let i = 1; i <= targetCount; i++) {
+        const sec = sections[(i - 1) % sections.length];
+        const capacity = i === targetCount && targetCount >= 6 ? 8 : i % 3 === 0 ? 6 : i % 2 === 0 ? 4 : 2;
+        const status = i === 2 ? 'OCCUPIED' : i === 6 && targetCount > 6 ? 'RESERVED' : 'AVAILABLE';
+        const tableName = i === targetCount && targetCount >= 8 ? `VIP Suite ${i}` : `Table ${i}`;
+
         await prisma.table.create({
           data: {
             tenantId,
-            tableNumber: t.tableNumber,
-            tableName: t.tableName,
-            capacity: t.capacity,
-            status: t.status,
-            sortOrder: t.sortOrder,
+            sectionId: sec.id,
+            tableNumber: `${i}`,
+            tableName,
+            capacity,
+            status: status as any,
+            sortOrder: i,
           },
         });
       }

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@platform/database';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { seedTenantStarterData } from '@/lib/seed-starter';
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, password } = await req.json();
+    const { email, password, tableCount } = await req.json();
 
     if (!email) {
       return NextResponse.json({ error: 'Email is required.' }, { status: 400 });
@@ -111,8 +112,18 @@ export async function POST(req: NextRequest) {
       data: { lastLoginAt: new Date() },
     });
 
-    // Check if onboarding is completed
-    const onboardingCompleted = user.tenant?.businessProfile?.onboardingCompleted ?? false;
+    // Ensure tables and menu items are loaded/seeded according to requested table count
+    if (user.tenant) {
+      try {
+        await seedTenantStarterData(
+          user.tenant.id,
+          user.tenant.businessType || 'RESTAURANT',
+          tableCount ? Number(tableCount) : undefined
+        );
+      } catch (seedErr) {
+        console.warn('Login starter data seed warning:', seedErr);
+      }
+    }
 
     // Extract enabled modules
     const enabledModules = user.tenant?.modules

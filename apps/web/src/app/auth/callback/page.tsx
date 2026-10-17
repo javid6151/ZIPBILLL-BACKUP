@@ -25,6 +25,9 @@ export default function AuthCallbackPage() {
           userEmail.split('@')[0] ||
           'Restaurant Owner';
 
+        const savedTableCount =
+          typeof window !== 'undefined' ? localStorage.getItem('saas_selected_table_count') : null;
+
         // Synchronize with PostgreSQL database to create or retrieve clean workspace
         const res = await fetch('/api/auth/oauth-sync', {
           method: 'POST',
@@ -33,6 +36,7 @@ export default function AuthCallbackPage() {
             userId: authUser.id,
             email: userEmail,
             fullName: userName,
+            tableCount: savedTableCount ? Number(savedTableCount) : 8,
           }),
         });
 

@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, email, fullName } = await req.json();
+    const { userId, email, fullName, tableCount } = await req.json();
 
     if (!userId || !email) {
       return NextResponse.json(
@@ -44,9 +44,13 @@ export async function POST(req: NextRequest) {
         } catch {}
       }
 
-      // Seed starter tables and menu if empty
+      // Seed starter tables and menu if empty or requested custom table count
       try {
-        await seedTenantStarterData(user.tenant.id, user.tenant.businessType || 'RESTAURANT');
+        await seedTenantStarterData(
+          user.tenant.id,
+          user.tenant.businessType || 'RESTAURANT',
+          tableCount ? Number(tableCount) : undefined
+        );
       } catch {}
 
       const response = NextResponse.json({
@@ -301,7 +305,11 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      await seedTenantStarterData(result.tenant.id, result.tenant.businessType || 'RESTAURANT');
+      await seedTenantStarterData(
+        result.tenant.id,
+        result.tenant.businessType || 'RESTAURANT',
+        tableCount ? Number(tableCount) : undefined
+      );
     } catch (e: any) {
       console.warn('Starter data seeding skipped:', e.message);
     }

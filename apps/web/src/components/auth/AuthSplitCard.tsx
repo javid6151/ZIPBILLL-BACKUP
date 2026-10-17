@@ -55,6 +55,14 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
   const [googleLoading, setGoogleLoading] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [tableCount, setTableCount] = useState<number>(8);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('saas_selected_table_count');
+      if (saved) setTableCount(Number(saved));
+    }
+  }, []);
 
   // Register State
   const [fullName, setFullName] = useState('');
@@ -183,6 +191,9 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
     setGoogleLoading(true);
     setAuthError(null);
     try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('saas_selected_table_count', String(tableCount));
+      }
       const redirectUrl = `${window.location.origin}/auth/callback`;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -209,11 +220,14 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
     setPreviewLoading(true);
     setAuthError(null);
     try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('saas_selected_table_count', String(tableCount));
+      }
       // Connect to the primary approved restaurant workspace
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'uttupulusu@gmail.com', password: '' }),
+        body: JSON.stringify({ email: 'uttupulusu@gmail.com', password: '', tableCount }),
       });
 
       const data = await res.json();
@@ -278,10 +292,13 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
     setAuthError(null);
 
     try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('saas_selected_table_count', String(tableCount));
+      }
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: cleanEmail, password }),
+        body: JSON.stringify({ email: cleanEmail, password, tableCount }),
       });
 
       const data = await res.json();
@@ -380,6 +397,7 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
           phone,
           city: city || 'Bengaluru',
           country: 'India',
+          tableCount,
         }),
       });
 
@@ -398,6 +416,7 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
             phone,
             city: city || 'Bengaluru',
             businessType: bType,
+            tableCount,
             submittedAt: new Date().toISOString(),
           })
         );
@@ -597,30 +616,104 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
                   <span>{googleLoading ? 'Connecting to Google...' : 'Continue with Google'}</span>
                 </button>
 
-                {/* 2. One-Click Instant Live Preview */}
+                {/* 2. Restaurant Floor Plan & Tables Suggestion Selector */}
+                <div className="p-3 sm:p-3.5 rounded-2xl bg-[#F8F7F4] border border-[#E8E6E4] space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-1.5">
+                      <span className="p-1 rounded-md bg-orange-100 text-[#EA580C]">
+                        <Store className="w-3.5 h-3.5" />
+                      </span>
+                      <span className="text-xs font-bold text-[#1C1917]">
+                        Dining Floor & Table Setup
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-semibold text-[#EA580C] bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200/60 flex items-center space-x-1">
+                      <Sparkles className="w-3 h-3 text-[#EA580C]" />
+                      <span>Live Starter Kit</span>
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] text-[#78716C] leading-snug">
+                    How many dining tables does your restaurant have? Select a capacity to pre-configure:
+                  </p>
+
+                  {/* Suggestion Pills */}
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {[
+                      { count: 4, label: '4', sub: 'Bistro' },
+                      { count: 8, label: '8', sub: 'Standard', popular: true },
+                      { count: 12, label: '12', sub: 'Family' },
+                      { count: 16, label: '16', sub: 'Lounge' },
+                      { count: 24, label: '24', sub: 'Banquet' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.count}
+                        type="button"
+                        onClick={() => {
+                          setTableCount(opt.count);
+                          if (typeof window !== 'undefined') {
+                            localStorage.setItem('saas_selected_table_count', String(opt.count));
+                          }
+                        }}
+                        className={`py-1.5 px-1 rounded-xl text-center border transition-all cursor-pointer flex flex-col items-center justify-center ${
+                          tableCount === opt.count
+                            ? 'bg-[#EA580C] text-white border-[#EA580C] shadow-xs scale-[1.02]'
+                            : 'bg-white text-[#1C1917] border-[#E8E6E4] hover:border-[#D1D5DB] hover:bg-[#FAF9F6]'
+                        }`}
+                      >
+                        <span className="text-xs font-bold leading-tight">{opt.label}</span>
+                        <span
+                          className={`text-[9px] font-medium leading-tight truncate ${
+                            tableCount === opt.count ? 'text-white/80' : 'text-[#78716C]'
+                          }`}
+                        >
+                          {opt.sub}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Live Floor & Menu Summary Line */}
+                  <div className="flex items-center justify-between pt-1 text-[11px] text-[#57534E] border-t border-[#E8E6E4]/70">
+                    <div className="flex items-center space-x-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="font-semibold text-[#1C1917]">{tableCount} Dining Tables</span>
+                      <span className="text-[10px] text-[#78716C]">• 3 Floor Sections</span>
+                    </div>
+                    <span className="text-[10px] font-semibold text-orange-700 bg-orange-100/70 px-1.5 py-0.5 rounded">
+                      + 25 Menu Items Ready
+                    </span>
+                  </div>
+                </div>
+
+                {/* 3. 1-Click Instant Live Launch with Table & Menu Starter Kit */}
                 <button
                   type="button"
                   onClick={handleQuickPreview}
                   disabled={loading || googleLoading || previewLoading}
-                  className="w-full py-2 px-3 bg-gradient-to-r from-orange-50 to-amber-50 hover:from-orange-100 hover:to-amber-100 text-orange-950 text-xs font-semibold rounded-xl border border-orange-200/80 shadow-xs transition-all flex items-center justify-between cursor-pointer group disabled:opacity-70"
+                  className="w-full py-2.5 px-3.5 bg-gradient-to-r from-orange-600 via-orange-500 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white text-xs font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-between cursor-pointer group disabled:opacity-70"
                 >
-                  <div className="flex items-center space-x-2">
-                    <span className="p-1 rounded-lg bg-orange-600 text-white shadow-xs">
-                      <Zap className="w-3.5 h-3.5" />
+                  <div className="flex items-center space-x-2.5 text-left">
+                    <span className="p-1.5 rounded-lg bg-white/20 text-white shrink-0">
+                      <Zap className="w-4 h-4 fill-white" />
                     </span>
-                    <div className="text-left">
-                      <p className="font-bold text-[12px] leading-tight text-orange-950 flex items-center space-x-1">
-                        <span>Instant Live Preview Mode</span>
-                        <span className="text-[9px] px-1.5 py-0.2 bg-orange-200/80 rounded-md text-orange-800 font-bold uppercase tracking-wide">
+                    <div>
+                      <p className="font-bold text-[12px] leading-tight text-white flex items-center space-x-1.5">
+                        <span>
+                          {previewLoading
+                            ? `Opening with ${tableCount} Tables...`
+                            : `Launch Restaurant with ${tableCount} Tables & Menu`}
+                        </span>
+                        <span className="text-[9px] px-1.5 py-0.2 bg-white/25 rounded-md text-white font-bold uppercase tracking-wider">
                           1-Click
                         </span>
                       </p>
-                      <p className="text-[10px] text-orange-800/80 leading-tight">
-                        Explore with real tables, active orders & live KDS
+                      <p className="text-[10px] text-white/85 leading-tight mt-0.5">
+                        Opens dashboard in seconds with live dining floor, POS & KDS
                       </p>
                     </div>
                   </div>
-                  <ArrowRight className="w-3.5 h-3.5 text-orange-600 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                  <ArrowRight className="w-4 h-4 text-white group-hover:translate-x-1 transition-transform shrink-0 ml-2" />
                 </button>
 
                 {/* Divider */}
@@ -912,6 +1005,30 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
                         className="w-full px-3 py-1.5 bg-[#FFFFFF] border border-[#E8E6E4] hover:border-[#D1D5DB] rounded-xl text-xs sm:text-sm text-[#1C1917] placeholder:text-[#A8A29E] focus:outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#EA580C]/15 transition-all"
                         placeholder="Bengaluru"
                       />
+                    </div>
+                  </div>
+
+                  {/* Dining Floor Capacity */}
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-[#1C1917] flex items-center justify-between">
+                      <span>Dining Tables Setup</span>
+                      <span className="text-[10px] text-[#EA580C] font-semibold">{tableCount} Tables Configured</span>
+                    </label>
+                    <div className="grid grid-cols-5 gap-1.5">
+                      {[4, 8, 12, 16, 24].map((num) => (
+                        <button
+                          key={num}
+                          type="button"
+                          onClick={() => setTableCount(num)}
+                          className={`py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                            tableCount === num
+                              ? 'bg-[#EA580C] text-white border-[#EA580C] shadow-xs'
+                              : 'bg-white text-[#1C1917] border-[#E8E6E4] hover:border-[#D1D5DB]'
+                          }`}
+                        >
+                          {num}
+                        </button>
+                      ))}
                     </div>
                   </div>
 

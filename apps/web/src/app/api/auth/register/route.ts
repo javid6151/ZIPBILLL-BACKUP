@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@platform/database';
 import { supabaseAdmin } from '@/lib/supabase';
+import { seedTenantStarterData } from '@/lib/seed-starter';
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,6 +17,7 @@ export async function POST(req: NextRequest) {
       city,
       state,
       country = 'India',
+      tableCount,
     } = body;
 
     if (!email || !restaurantName || !fullName) {
@@ -222,7 +224,7 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Create RegistrationRequest with only the details filled by the applicant
+      // Create RegistrationRequest with details filled by the applicant
       const registration = await tx.registrationRequest.create({
         data: {
           tenantId: tenant.id,
@@ -232,6 +234,7 @@ export async function POST(req: NextRequest) {
           businessType: businessType as any,
           status: 'PENDING',
           intendedModules: body.intendedModules || null,
+          tableCountEst: tableCount ? Number(tableCount) : 8,
         },
       });
 
@@ -250,12 +253,17 @@ export async function POST(req: NextRequest) {
             email,
             authUserId,
             status: 'PENDING',
+            tableCount: tableCount ? Number(tableCount) : 8,
           },
         },
       });
 
       return { tenant, profile, user, registration };
     });
+
+    try {
+      await seedTenantStarterData(result.tenant.id, businessType as any, tableCount ? Number(tableCount) : 8);
+    } catch {}
 
     return NextResponse.json({
       success: true,
