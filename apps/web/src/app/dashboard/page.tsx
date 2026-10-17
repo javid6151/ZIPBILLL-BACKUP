@@ -110,10 +110,19 @@ function DashboardContent() {
 
   useEffect(() => {
     if (!session?.isSuperAdmin && !isApproved) {
-      if (isIncomplete) {
-        router.replace(`/onboarding?tenantId=${profile?.tenantId || currentTenant?.id || ''}&email=${encodeURIComponent(profile?.email || session?.email || '')}`);
-      } else if (isPending) {
-        router.replace(`/pending-approval?tenantId=${profile?.tenantId || currentTenant?.id || ''}&email=${encodeURIComponent(profile?.email || session?.email || '')}`);
+      const activeTenant = profile?.tenantId || currentTenant?.id;
+      const activeEmail = profile?.email || session?.email;
+
+      // If user has no active session and no tenant, redirect to login
+      if (!session?.userId && !activeTenant) {
+        router.replace('/login');
+        return;
+      }
+
+      if (activeTenant && isIncomplete) {
+        router.replace(`/onboarding?tenantId=${activeTenant}&email=${encodeURIComponent(activeEmail || '')}`);
+      } else if (activeTenant && isPending) {
+        router.replace(`/pending-approval?tenantId=${activeTenant}&email=${encodeURIComponent(activeEmail || '')}`);
       }
     }
   }, [profile, currentTenant, session, isApproved, isPending, isIncomplete, router]);

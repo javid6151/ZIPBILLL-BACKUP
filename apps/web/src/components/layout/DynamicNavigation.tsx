@@ -352,10 +352,14 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
       const isComplete = profile.onboardingCompleted || storedProfile?.onboardingCompleted || storedPending?.onboardingCompleted;
 
       if (!isApproved && activeStatus === 'PENDING' && !session.isSuperAdmin) {
-        if (!isComplete && !storedPending?.wizardSubmitted) {
-          router.replace(`/onboarding?tenantId=${activeTenantId || ''}&email=${encodeURIComponent(activeEmail || '')}`);
+        if (activeTenantId) {
+          if (!isComplete && !storedPending?.wizardSubmitted) {
+            router.replace(`/onboarding?tenantId=${activeTenantId}&email=${encodeURIComponent(activeEmail || '')}`);
+          } else {
+            router.replace(`/pending-approval?tenantId=${activeTenantId}&email=${encodeURIComponent(activeEmail || '')}`);
+          }
         } else {
-          router.replace(`/pending-approval?tenantId=${activeTenantId || ''}&email=${encodeURIComponent(activeEmail || '')}`);
+          router.replace('/login');
         }
       }
     }
@@ -399,11 +403,16 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
     const isComplete = profile?.onboardingCompleted ?? storedProfile?.onboardingCompleted ?? storedPending?.onboardingCompleted;
 
     if (!isApproved && activeStatus === 'PENDING') {
-      isAwaitingWizardOrApproval = true;
-      if (isComplete === false && !storedPending?.wizardSubmitted) {
-        guardRedirectUrl = `/onboarding?tenantId=${activeTenantId || ''}&email=${encodeURIComponent(activeEmail || '')}`;
+      if (activeTenantId) {
+        isAwaitingWizardOrApproval = true;
+        if (isComplete === false && !storedPending?.wizardSubmitted) {
+          guardRedirectUrl = `/onboarding?tenantId=${activeTenantId}&email=${encodeURIComponent(activeEmail || '')}`;
+        } else {
+          guardRedirectUrl = `/pending-approval?tenantId=${activeTenantId}&email=${encodeURIComponent(activeEmail || '')}`;
+        }
       } else {
-        guardRedirectUrl = `/pending-approval?tenantId=${activeTenantId || ''}&email=${encodeURIComponent(activeEmail || '')}`;
+        guardRedirectUrl = '/login';
+        isAwaitingWizardOrApproval = true;
       }
     }
   }

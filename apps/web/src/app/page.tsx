@@ -52,9 +52,10 @@ export default function RootPage() {
 
     const hasCookie = typeof document !== 'undefined' && document.cookie.includes('saas_session_active=true');
     const hasValidSession = Boolean(
-      (savedSession?.userId && savedSession.userId !== 'usr-owner-01') ||
+      ((savedSession?.userId && savedSession.userId !== 'usr-owner-01') ||
       (session?.userId && session.userId !== 'usr-owner-01') ||
-      hasCookie
+      hasCookie) &&
+      activeTenantId
     );
 
     if (hasValidSession) {
