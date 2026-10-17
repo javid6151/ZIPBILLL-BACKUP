@@ -414,7 +414,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       status: 'PENDING',
-      message: 'Onboarding configuration successfully saved and submitted for Super Admin review.',
+      message: 'Onboarding configuration successfully saved and submitted for verification.',
       redirect: `/pending-approval?tenantId=${targetTenantId}&email=${encodeURIComponent(email || '')}`,
       profile: result.profile,
       tenantId: targetTenantId,

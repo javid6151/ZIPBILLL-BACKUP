@@ -10,7 +10,6 @@ import {
   Store,
   RefreshCw,
   LogOut,
-  ExternalLink,
   ShieldCheck,
   Building2,
   ArrowRight,
@@ -35,8 +34,15 @@ function PendingApprovalContent() {
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
   const [submittedAt, setSubmittedAt] = useState<string>('');
   const [checking, setChecking] = useState<boolean>(false);
-  const [lastChecked, setLastChecked] = useState<Date>(new Date());
+  const [isMounted, setIsMounted] = useState<boolean>(false);
+  const [lastChecked, setLastChecked] = useState<Date | null>(null);
   const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
+
+  // Set mounted on client
+  useEffect(() => {
+    setIsMounted(true);
+    setLastChecked(new Date());
+  }, []);
 
   // Initialize from searchParams or localStorage
   useEffect(() => {
@@ -178,11 +184,7 @@ function PendingApprovalContent() {
                   <strong className="text-[#1C1917] font-bold">
                     {restaurantName || 'Your Restaurant'}
                   </strong>{' '}
-                  has been sent to the Platform Admin Panel on{' '}
-                  <span className="font-mono font-semibold text-amber-800 bg-amber-100/70 px-1.5 py-0.5 rounded">
-                    Port 9000
-                  </span>
-                  .
+                  has been submitted and is currently being verified by our platform team.
                 </p>
               </div>
 
@@ -231,26 +233,28 @@ function PendingApprovalContent() {
 
                 <div className="flex justify-between items-center text-[#78716C]">
                   <span className="flex items-center gap-1.5">
-                    <ShieldCheck className="w-3.5 h-3.5 text-[#A8A29E]" /> Approval Stage:
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#A8A29E]" /> Verification Status:
                   </span>
-                  <span className="font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
-                    Awaiting Super Admin (Port 9000)
+                  <span className="font-bold text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-full">
+                    Awaiting Verification & Approval
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center text-[#78716C] pt-1">
                   <span>Last Live Poll:</span>
-                  <span className="font-mono text-[#A8A29E]">
-                    {lastChecked.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  <span className="font-mono text-[#A8A29E]" suppressHydrationWarning>
+                    {isMounted && lastChecked
+                      ? lastChecked.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                      : 'Just now'}
                   </span>
                 </div>
               </div>
 
               {/* Information Notice */}
               <div className="p-3.5 rounded-xl bg-orange-50/70 border border-orange-200/60 text-left flex items-start space-x-3 text-xs text-[#9A3412]">
-                <Sparkles className="w-4 h-4 text-[#EA580C] shrink-0 mt-0.5" />
+                <ShieldCheck className="w-4 h-4 text-[#EA580C] shrink-0 mt-0.5" />
                 <p className="leading-relaxed">
-                  <strong>Workflow Rule:</strong> The Super Admin must review and click <strong>Approve</strong> in the Admin Control Plane (Port 9000). Until then, login to the workspace is restricted.
+                  <strong>Verification in Progress:</strong> Our administration team reviews every restaurant profile to ensure compliance and configure your payment & printer settings. You will be redirected immediately once approved.
                 </p>
               </div>
 
@@ -263,26 +267,8 @@ function PendingApprovalContent() {
                   className="w-full py-3 px-4 rounded-xl bg-[#1C1917] hover:bg-black text-white text-xs sm:text-sm font-bold flex items-center justify-center space-x-2 shadow-md hover:shadow-lg transition-all"
                 >
                   <RefreshCw className={`w-4 h-4 ${checking ? 'animate-spin' : ''}`} />
-                  <span>{checking ? 'Checking PostgreSQL Database...' : 'Check Approval Status Now'}</span>
+                  <span>{checking ? 'Checking Status...' : 'Check Approval Status'}</span>
                 </button>
-
-                {/* Direct Link to Admin Panel */}
-                <div className="pt-2">
-                  <a
-                    href={
-                      process.env.NEXT_PUBLIC_ADMIN_URL ||
-                      (typeof window !== 'undefined' && window.location.hostname.includes('localhost')
-                        ? 'http://localhost:9000'
-                        : 'https://zipbill.vercel.app')
-                    }
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full py-2.5 px-4 rounded-xl bg-amber-50 hover:bg-amber-100 text-[#92400E] border border-amber-300/80 text-xs font-bold flex items-center justify-center space-x-2 transition"
-                  >
-                    <span>Open Admin Panel to Approve</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                </div>
 
                 <div className="pt-2 flex items-center justify-center space-x-4 text-xs text-[#78716C]">
                   <Link href="/login" className="hover:text-[#EA580C] font-semibold transition">
@@ -329,7 +315,7 @@ function PendingApprovalContent() {
                       className="w-full py-3.5 px-6 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white font-bold text-sm flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transition-all"
                     >
                       <Sparkles className="w-4 h-4" />
-                      <span>Start Restaurant Setup Wizard (Step 1 of 11)</span>
+                      <span>Start Restaurant Setup Wizard (Step 1 of 9)</span>
                       <ArrowRight className="w-4 h-4" />
                     </Link>
 
