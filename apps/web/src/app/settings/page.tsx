@@ -29,28 +29,27 @@ import {
   Sliders,
   Eye,
   EyeOff,
-  Search,
 } from 'lucide-react';
 import { SYSTEM_MODULE_REGISTRY } from '@platform/config-engine';
 import { BusinessType, ModuleToken } from '@platform/types';
 import { SECTION_MODULE_REQUIREMENTS } from '@/lib/permission-engine';
 
-const BUSINESS_MODELS: Array<{ type: BusinessType; name: string; icon: string; desc: string }> = [
-  { type: 'RESTAURANT', name: 'Fine / Casual Dine-in', icon: '🍽️', desc: 'Table service, live occupancy, KOTs, and split checks' },
-  { type: 'CAFE', name: 'Cafe & Bistro', icon: '☕', desc: 'Fast counter ordering, barista queues, and light seating' },
-  { type: 'BAKERY', name: 'Bakery & Patisserie', icon: '🥐', desc: 'Counter parcel checkouts, retail sales, stock tracking' },
-  { type: 'FAST_FOOD', name: 'Fast Food / QSR', icon: '🍔', desc: 'Token billing, instant checkout, and high-speed counter' },
-  { type: 'CLOUD_KITCHEN', name: 'Cloud Kitchen', icon: '🛵', desc: 'Online delivery dispatch, courier riders, no dining tables' },
-  { type: 'FOOD_COURT', name: 'Food Court Outlet', icon: '🏬', desc: 'Customer buzzer tokens, rapid counter checkouts' },
-  { type: 'BAR', name: 'Bar & Lounge', icon: '🍸', desc: 'Open bar tabs, drink modifiers, and lounge floor layout' },
-  { type: 'HOTEL_RESTAURANT', name: 'Hotel Restaurant', icon: '🏨', desc: 'Table service, room billing, guest folios' },
+const BUSINESS_MODELS: Array<{ type: BusinessType; name: string; desc: string }> = [
+  { type: 'RESTAURANT', name: 'Fine / Casual Dine-in', desc: 'Table service, live occupancy, KOTs, and split checks' },
+  { type: 'CAFE', name: 'Cafe & Bistro', desc: 'Fast counter ordering, barista queues, and light seating' },
+  { type: 'BAKERY', name: 'Bakery & Patisserie', desc: 'Counter parcel checkouts, retail sales, stock tracking' },
+  { type: 'FAST_FOOD', name: 'Fast Food / QSR', desc: 'Token billing, instant checkout, and high-speed counter' },
+  { type: 'CLOUD_KITCHEN', name: 'Cloud Kitchen', desc: 'Online delivery dispatch, courier riders, no dining tables' },
+  { type: 'FOOD_COURT', name: 'Food Court Outlet', desc: 'Customer buzzer tokens, rapid counter checkouts' },
+  { type: 'BAR', name: 'Bar & Lounge', desc: 'Open bar tabs, drink modifiers, and lounge floor layout' },
+  { type: 'HOTEL_RESTAURANT', name: 'Hotel Restaurant', desc: 'Table service, room billing, guest folios' },
 ];
 
 interface SidebarComponentItem {
   id: string;
   name: string;
   route: string;
-  icon: string;
+  icon: React.ComponentType<{ className?: string }>;
   category: 'Operations' | 'Sales' | 'Finance' | 'Catalog' | 'Hardware' | 'CRM' | 'Intelligence';
   description: string;
   badge?: string;
@@ -61,7 +60,7 @@ const SIDEBAR_COMPONENTS: SidebarComponentItem[] = [
     id: 'pos',
     name: 'Point of Sale (POS)',
     route: '/pos',
-    icon: '📟',
+    icon: Calculator,
     category: 'Sales',
     description: 'Fast counter billing, dine-in table orders, takeaway parcel sales and quick checkout.',
     badge: 'Core Billing',
@@ -70,7 +69,7 @@ const SIDEBAR_COMPONENTS: SidebarComponentItem[] = [
     id: 'tables',
     name: 'Tables & Floor Management',
     route: '/tables',
-    icon: '🪑',
+    icon: LayoutGrid,
     category: 'Operations',
     description: 'Interactive visual floor map, table occupancy colors, seat transfers and table merging.',
   },
@@ -78,7 +77,7 @@ const SIDEBAR_COMPONENTS: SidebarComponentItem[] = [
     id: 'orders',
     name: 'Live Orders Feed',
     route: '/orders',
-    icon: '📋',
+    icon: ClipboardList,
     category: 'Operations',
     description: 'Real-time kitchen order feed, active ticket tracking, pending statuses and order history.',
   },
@@ -86,7 +85,7 @@ const SIDEBAR_COMPONENTS: SidebarComponentItem[] = [
     id: 'kitchen',
     name: 'Kitchen Display (KDS)',
     route: '/kitchen',
-    icon: '👨‍🍳',
+    icon: ChefHat,
     category: 'Operations',
     description: 'Live chef prep screen, paperless kitchen tickets (KOT), item timers and prep queues.',
   },
@@ -94,7 +93,7 @@ const SIDEBAR_COMPONENTS: SidebarComponentItem[] = [
     id: 'menu',
     name: 'Menu & Food Catalog',
     route: '/menu',
-    icon: '📖',
+    icon: BookOpen,
     category: 'Catalog',
     description: 'Dishes, portion variations, addon groups, price overrides and instant menu updates.',
   },
@@ -102,7 +101,7 @@ const SIDEBAR_COMPONENTS: SidebarComponentItem[] = [
     id: 'billing',
     name: 'Invoices & Billing',
     route: '/billing',
-    icon: '🧾',
+    icon: Receipt,
     category: 'Finance',
     description: 'GST tax invoices, bill splits, manager discounts, bill reprints and refund management.',
   },
@@ -110,7 +109,7 @@ const SIDEBAR_COMPONENTS: SidebarComponentItem[] = [
     id: 'payments',
     name: 'Payments & Settlement',
     route: '/payments',
-    icon: '💳',
+    icon: CreditCard,
     category: 'Finance',
     description: 'Dynamic BharatPe / Paytm UPI QR codes, debit/credit cards, cash register shift audits.',
   },
@@ -118,7 +117,7 @@ const SIDEBAR_COMPONENTS: SidebarComponentItem[] = [
     id: 'inventory',
     name: 'Inventory & Stock',
     route: '/inventory',
-    icon: '📦',
+    icon: Package,
     category: 'Operations',
     description: 'Raw ingredient tracking, recipe bills-of-materials, low-stock warnings and wastage logs.',
   },
@@ -126,7 +125,7 @@ const SIDEBAR_COMPONENTS: SidebarComponentItem[] = [
     id: 'customers',
     name: 'Customers & CRM',
     route: '/customers',
-    icon: '👥',
+    icon: Users,
     category: 'CRM',
     description: 'Guest telephone directory, visit frequency, spend history, feedback and loyalty rewards.',
   },
@@ -134,7 +133,7 @@ const SIDEBAR_COMPONENTS: SidebarComponentItem[] = [
     id: 'staff',
     name: 'Staff & Team Access',
     route: '/staff',
-    icon: '🛡️',
+    icon: Shield,
     category: 'Operations',
     description: 'Waiter & kitchen employee profiles, PIN access logins, role-based permission control.',
   },
@@ -142,7 +141,7 @@ const SIDEBAR_COMPONENTS: SidebarComponentItem[] = [
     id: 'expenses',
     name: 'Daily Store Expenses',
     route: '/expenses',
-    icon: '📉',
+    icon: TrendingDown,
     category: 'Finance',
     description: 'Petty cash records, daily vegetable/milk vendor payouts, utility bills and operating costs.',
   },
@@ -150,7 +149,7 @@ const SIDEBAR_COMPONENTS: SidebarComponentItem[] = [
     id: 'qr',
     name: 'QR & Digital Ordering',
     route: '/qr',
-    icon: '📱',
+    icon: QrCode,
     category: 'Operations',
     description: 'High-res printable table QR codes, contactless guest phone ordering and digital menu.',
   },
@@ -158,7 +157,7 @@ const SIDEBAR_COMPONENTS: SidebarComponentItem[] = [
     id: 'printers',
     name: 'Printers & Hardware',
     route: '/printers',
-    icon: '🖨️',
+    icon: Printer,
     category: 'Hardware',
     description: '80mm cashier thermal invoice printers, 58mm KOT kitchen printers and USB/LAN routing.',
   },
@@ -166,7 +165,7 @@ const SIDEBAR_COMPONENTS: SidebarComponentItem[] = [
     id: 'reports',
     name: 'Reports & Analytics',
     route: '/reports',
-    icon: '📊',
+    icon: BarChart3,
     category: 'Intelligence',
     description: 'Daily revenue analytics, item-level sales breakdown, GST reports and staff productivity.',
   },
@@ -248,18 +247,9 @@ export default function SettingsAndModulesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-borderLight">
         <div>
-          <div className="flex items-center space-x-2.5">
-            <h1 className="text-[26px] sm:text-[30px] font-semibold text-heading tracking-tight leading-tight">
-              Store Settings & System Modules
-            </h1>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-semibold flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              Live Dynamic Sync
-            </span>
-          </div>
-          <p className="text-[13px] text-secondary mt-1">
-            Configure sidebar navigation components, sub-modules and business preferences. Disabling any component immediately hides it from the sidebar and securing its route.
-          </p>
+          <h1 className="text-[26px] sm:text-[30px] font-semibold text-heading tracking-tight leading-tight">
+            Store Settings
+          </h1>
         </div>
 
         {/* Tab Controls */}
@@ -302,51 +292,6 @@ export default function SettingsAndModulesPage() {
       {/* TAB 1: SIDEBAR NAVIGATION COMPONENTS (PRIMARY USER REQUEST) */}
       {activeTab === 'SIDEBAR' && (
         <div className="space-y-5">
-          {/* Section Information & Control Bar */}
-          <div className="card space-y-4 bg-surface border-border">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center space-x-2">
-                  <h2 className="text-base font-semibold text-heading">
-                    Sidebar Navigation Components Control
-                  </h2>
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">
-                    Dynamic Database Link
-                  </span>
-                </div>
-                <p className="text-xs text-secondary mt-1 max-w-3xl leading-relaxed">
-                  Every sidebar component is completely customizable. When you toggle a component <strong>OFF</strong>, it disappears immediately from your left sidebar navigation and updates PostgreSQL. When you toggle it <strong>ON</strong>, it reappears in real time.
-                </p>
-              </div>
-
-              {/* Status Pill Badge */}
-              <div className="flex items-center space-x-2 text-xs flex-shrink-0">
-                <span className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 font-semibold border border-emerald-200 dark:border-emerald-800/40">
-                  {activeSidebarCount} Visible
-                </span>
-                <span className="px-3 py-1.5 rounded-xl bg-surfaceMuted font-semibold text-secondary border border-borderLight">
-                  {14 - activeSidebarCount} Hidden
-                </span>
-              </div>
-            </div>
-
-            {/* Search Filter */}
-            <div className="pt-2 border-t border-borderLight flex items-center justify-between gap-3">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted" />
-                <input
-                  type="text"
-                  placeholder="Filter sidebar components (e.g. kitchen, pos, tables)..."
-                  value={componentSearch}
-                  onChange={(e) => setComponentSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-1.5 rounded-lg text-xs bg-surfaceMuted border border-borderLight text-heading placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-              <span className="text-[11px] text-muted hidden sm:inline">
-                Showing {filteredSidebarComponents.length} components
-              </span>
-            </div>
-          </div>
 
           {/* Grid of 14 Sidebar Navigation Components */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -367,13 +312,13 @@ export default function SettingsAndModulesPage() {
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center space-x-2.5">
                         <div
-                          className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg ${
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center ${
                             isActive
-                              ? 'bg-primary/10 border border-primary/20 shadow-xs'
-                              : 'bg-surfaceMuted border border-borderLight'
+                              ? 'bg-primary/10 text-primary border border-primary/20 shadow-xs'
+                              : 'bg-surfaceMuted text-secondary border border-borderLight'
                           }`}
                         >
-                          {comp.icon}
+                          <comp.icon className="w-4 h-4 stroke-[2]" />
                         </div>
                         <div>
                           <span className="text-[10px] font-mono uppercase tracking-wider text-muted font-medium">
@@ -568,7 +513,9 @@ export default function SettingsAndModulesPage() {
                       : 'border-border hover:border-primary/40'
                   }`}
                 >
-                  <div className="text-2xl mb-2">{item.icon}</div>
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-2.5 border border-primary/20">
+                    <Store className="w-4 h-4 stroke-[2]" />
+                  </div>
                   <div className="font-semibold text-sm text-heading flex items-center justify-between">
                     <span>{item.name}</span>
                     {isCurrent && <Check className="w-4 h-4 text-primary stroke-[2.5]" />}

@@ -892,9 +892,9 @@ Gulab Jamun with Rabdi - ₹140 [VEG]`)
               <h3 className="font-semibold text-heading text-lg">Add New Dish / Menu Item</h3>
               <button
                 onClick={() => setIsAddOpen(false)}
-                className="text-secondary hover:text-heading text-sm"
+                className="text-secondary hover:text-heading p-1 rounded-lg hover:bg-surfaceMuted transition"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -953,9 +953,9 @@ Gulab Jamun with Rabdi - ₹140 [VEG]`)
                   onChange={(e) => setFoodType(e.target.value)}
                   className="input-field text-sm"
                 >
-                  <option value="VEG">🟢 Vegetarian (VEG)</option>
-                  <option value="NON_VEG">🔴 Non-Vegetarian (NON_VEG)</option>
-                  <option value="EGG">🟡 Contains Egg (EGG)</option>
+                  <option value="VEG">Vegetarian (VEG)</option>
+                  <option value="NON_VEG">Non-Vegetarian (NON_VEG)</option>
+                  <option value="EGG">Contains Egg (EGG)</option>
                 </select>
               </div>
 

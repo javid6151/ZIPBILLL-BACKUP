@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Check,
   Sparkles,
+  X,
 } from 'lucide-react';
 
 interface CustomRole {
@@ -429,9 +430,9 @@ export default function StaffAndSecurityPage() {
               </div>
               <button
                 onClick={() => setShowRoleModal(false)}
-                className="p-1 rounded-lg text-placeholder hover:text-heading"
+                className="p-1 rounded-lg text-placeholder hover:text-heading hover:bg-surfaceMuted transition"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -629,9 +630,9 @@ export default function StaffAndSecurityPage() {
               <button
                 type="button"
                 onClick={() => setShowAddStaffModal(false)}
-                className="text-placeholder hover:text-heading"
+                className="text-placeholder hover:text-heading p-1 rounded-lg hover:bg-surfaceMuted transition"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -687,8 +688,8 @@ export default function StaffAndSecurityPage() {
                   onChange={(e) => setNewStaffRole(e.target.value as any)}
                   className="input-field font-semibold"
                 >
-                  <option value="WAITER">🍽️ Waiter (Floor Orders & POS)</option>
-                  <option value="KITCHEN">👨‍🍳 Kitchen (KDS & Preparation Queue)</option>
+                  <option value="WAITER">Waiter (Floor Orders & POS)</option>
+                  <option value="KITCHEN">Kitchen (KDS & Preparation Queue)</option>
                 </select>
                 <p className="text-[11px] text-muted mt-1">
                   Restricted to standard operational roles per 3-Role Architecture spec.

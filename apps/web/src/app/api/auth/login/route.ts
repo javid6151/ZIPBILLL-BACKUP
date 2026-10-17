@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({
           status: 'PENDING_APPROVAL',
-          message: 'Your restaurant registration is currently pending Super Admin review and approval.',
+          message: 'Your restaurant registration is currently pending verification and approval.',
           redirect: `/pending-approval?tenantId=${user.tenant.id}&email=${encodeURIComponent(user.email)}`,
           tenantId: user.tenant.id,
           user: {

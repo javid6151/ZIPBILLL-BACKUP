@@ -35,54 +35,46 @@ import {
 } from 'lucide-react';
 import { BusinessType, ModuleToken } from '@platform/types';
 
-const BUSINESS_MODEL_INFO: Record<string, { label: string; badge: string; desc: string; icon: string }> = {
+const BUSINESS_MODEL_INFO: Record<string, { label: string; badge: string; desc: string }> = {
   RESTAURANT: {
     label: 'Fine / Casual Dine-in',
     badge: 'Table Service & KOTs',
     desc: 'Table service, live dining floor plan, KOT printing, and split checks.',
-    icon: '🍽️',
   },
   CAFE: {
     label: 'Cafe & Bistro',
     badge: 'Counter & Barista Queue',
     desc: 'Rapid counter ordering, barista drink preparation, and light seating.',
-    icon: '☕',
   },
   BAKERY: {
     label: 'Bakery & Patisserie',
     badge: 'Takeaway & Retail Stock',
     desc: 'Fast takeaway checkouts, boxed pastry billing, and inventory tracking.',
-    icon: '🥐',
   },
   FAST_FOOD: {
     label: 'Fast Food / QSR',
     badge: 'Token High-Throughput',
     desc: 'Token-based order numbering, instant cash/UPI collection, rapid prep display.',
-    icon: '🍔',
   },
   CLOUD_KITCHEN: {
     label: 'Cloud Kitchen & Delivery',
     badge: 'Dispatch Aggregator',
     desc: 'Multi-brand online delivery dispatch, rider pickups, without floor seating.',
-    icon: '🛵',
   },
   FOOD_COURT: {
     label: 'Food Court Outlet',
     badge: 'Buzzer & Counter Tokens',
     desc: 'Rapid counter tokens, guest buzzer notifications, and fast POS checkouts.',
-    icon: '🏬',
   },
   BAR: {
     label: 'Bar & Lounge',
     badge: 'Tabs & Drink Inventory',
     desc: 'Open bar tabs, bottle inventory, drink modifiers, and lounge floor seating.',
-    icon: '🍸',
   },
   HOTEL_RESTAURANT: {
     label: 'Hotel & Resort Dining',
     badge: 'Room Billing & Dine-in',
     desc: 'Table service, split checks, and comprehensive guest folio management.',
-    icon: '🏨',
   },
 };
 
@@ -222,8 +214,8 @@ function DashboardContent() {
             <h1 className="text-[26px] sm:text-[30px] font-semibold text-heading tracking-tight leading-tight">
               {profile.businessName || 'Restaurant Dashboard'}
             </h1>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-semibold flex items-center space-x-1">
-              <span>{bModel.icon}</span>
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-semibold flex items-center space-x-1.5">
+              <Store className="w-3.5 h-3.5 stroke-[2] text-primary" />
               <span>{bModel.label}</span>
             </span>
             {isLoadingData && (

@@ -10,6 +10,8 @@ import {
   Utensils,
   Calculator,
   LayoutGrid,
+  ClipboardList,
+  Coffee,
   Users,
   Package,
   BarChart3,
@@ -42,26 +44,28 @@ import {
 } from 'lucide-react';
 import { BusinessType, ModuleToken } from '@platform/types';
 
+const ALL_MODULE_TOKENS = [
+  'POS',
+  'TABLES',
+  'ORDERS',
+  'KITCHEN',
+  'MENU',
+  'BILLING',
+  'PAYMENTS',
+  'INVENTORY',
+  'CUSTOMERS',
+  'STAFF',
+  'EXPENSES',
+  'REPORTS',
+  'QR',
+  'PRINTERS',
+  'AI_MENU_IMPORT',
+];
+
 // Map registration requested module tokens to wizard platform module tokens
 function mapRequestedModulesToWizard(requested: string[]): string[] {
   if (!requested || requested.length === 0) {
-    return [
-      'POS',
-      'TABLES',
-      'ORDERS',
-      'KITCHEN',
-      'MENU',
-      'BILLING',
-      'PAYMENTS',
-      'INVENTORY',
-      'CUSTOMERS',
-      'STAFF',
-      'EXPENSES',
-      'REPORTS',
-      'QR',
-      'PRINTERS',
-      'AI_MENU_IMPORT',
-    ];
+    return ALL_MODULE_TOKENS;
   }
 
   const set = new Set<string>();
@@ -113,17 +117,18 @@ function OnboardingWizardContent() {
   const [tenantId, setTenantId] = useState<string>('');
   const [tenantSlug, setTenantSlug] = useState<string>('');
   const [applicantOwnerName, setApplicantOwnerName] = useState<string>('');
+  const [authenticatedEmail, setAuthenticatedEmail] = useState<string>('');
 
-  // STEP 01: Business Type
-  const [bType, setBType] = useState<BusinessType>('RESTAURANT');
+  // STEP 01: Business Type (No default selection - user must explicitly select one)
+  const [bType, setBType] = useState<BusinessType | ''>('');
 
-  // STEP 02: Restaurant Information (Populated strictly from approved registration, NO mock fake data)
+  // STEP 02: Restaurant Information (Empty defaults - user fills them in Step 02)
   const [name, setName] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [address, setAddress] = useState<string>('');
   const [city, setCity] = useState<string>('');
-  const [state, setState] = useState<string>('Karnataka');
+  const [state, setState] = useState<string>('');
   const [country, setCountry] = useState<string>('India');
   const [currency, setCurrency] = useState<string>('INR');
   const [timezone, setTimezone] = useState<string>('Asia/Kolkata');
@@ -132,42 +137,16 @@ function OnboardingWizardContent() {
   const [logoUrl, setLogoUrl] = useState<string>('');
   const [logoFile, setLogoFile] = useState<File | null>(null);
 
-  // STEP 04: Restaurant Services
-  const [services, setServices] = useState<string[]>([
-    'Dine In',
-    'Takeaway',
-    'Delivery',
-    'Online Ordering',
-    'Counter Ordering',
-  ]);
+  // STEP 04: Restaurant Services (Empty defaults - user selects from channels)
+  const [services, setServices] = useState<string[]>([]);
 
-  // STEP 05: Module Selection (Derived from approved requested modules)
-  const [selectedModules, setSelectedModules] = useState<string[]>([
-    'POS',
-    'TABLES',
-    'ORDERS',
-    'KITCHEN',
-    'MENU',
-    'BILLING',
-    'PAYMENTS',
-    'INVENTORY',
-    'CUSTOMERS',
-    'STAFF',
-    'EXPENSES',
-    'REPORTS',
-    'QR',
-    'PRINTERS',
-    'AI_MENU_IMPORT',
-  ]);
+  // STEP 05: Module Selection (No defaults - user manually chooses)
+  const [selectedModules, setSelectedModules] = useState<string[]>([]);
 
-  // STEP 06: Table Configuration (Derived from approved estimated tables)
-  const [usesTables, setUsesTables] = useState<boolean>(true);
-  const [tableCount, setTableCount] = useState<number>(12);
-  const [tableSections, setTableSections] = useState<string[]>([
-    'Main Dining',
-    'AC Hall',
-    'Outdoor Terrace',
-  ]);
+  // STEP 06: Table Configuration (No defaults - user chooses)
+  const [usesTables, setUsesTables] = useState<boolean | null>(null);
+  const [tableCount, setTableCount] = useState<number | ''>('');
+  const [tableSections, setTableSections] = useState<string[]>([]);
   const [newSectionName, setNewSectionName] = useState<string>('');
 
   // STEP 07: Staff Configuration (Clean empty defaults, NO fake employees)
@@ -179,14 +158,18 @@ function OnboardingWizardContent() {
   // STEP 08: Menu Configuration (Clean empty defaults, NO hardcoded fake dishes)
   const [menuMode, setMenuMode] = useState<'MANUAL' | 'AI'>('AI');
   const [aiMenuRawText, setAiMenuRawText] = useState<string>('');
+  const [menuImageFile, setMenuImageFile] = useState<File | null>(null);
+  const [menuImageBase64, setMenuImageBase64] = useState<string>('');
+  const [menuImageMime, setMenuImageMime] = useState<string>('image/jpeg');
+  const [menuImagePreview, setMenuImagePreview] = useState<string>('');
   const [aiParsing, setAiParsing] = useState<boolean>(false);
   const [aiParsedCategories, setAiParsedCategories] = useState<any[]>([]);
 
-  // STEP 09: Billing Configuration
-  const [taxRate, setTaxRate] = useState<number>(5);
-  const [serviceCharge, setServiceCharge] = useState<number>(0);
-  const [roundOff, setRoundOff] = useState<boolean>(true);
-  const [invoicePrefix, setInvoicePrefix] = useState<string>('INV-2026-');
+  // STEP 09: Billing Configuration (No defaults - filled by user)
+  const [taxRate, setTaxRate] = useState<number | ''>('');
+  const [serviceCharge, setServiceCharge] = useState<number | ''>('');
+  const [roundOff, setRoundOff] = useState<boolean>(false);
+  const [invoicePrefix, setInvoicePrefix] = useState<string>('');
   const [paymentMethods, setPaymentMethods] = useState<string[]>([
     'Cash',
     'UPI (PhonePe, GPay, Paytm)',
@@ -194,8 +177,8 @@ function OnboardingWizardContent() {
     'Food Vouchers',
   ]);
 
-  // STEP 10: Printer Configuration
-  const [printerType, setPrinterType] = useState<string>('THERMAL_80MM');
+  // STEP 10: Printer Configuration (No defaults - selected by user)
+  const [printerType, setPrinterType] = useState<string>('');
   const [kotPrinter, setKotPrinter] = useState<boolean>(true);
   const [networkIp, setNetworkIp] = useState<string>('192.168.1.100');
 
@@ -261,7 +244,7 @@ function OnboardingWizardContent() {
       }
 
       setTenantId(resolvedTenantId);
-      setEmail(resolvedEmail);
+      setAuthenticatedEmail(resolvedEmail);
 
       try {
         const query = resolvedTenantId
@@ -281,22 +264,8 @@ function OnboardingWizardContent() {
           if (data.tenantId) setTenantId(data.tenantId);
           if (data.slug) setTenantSlug(data.slug);
 
-          // Populate with REAL approved restaurant data
-          if (data.restaurantName) setName(data.restaurantName);
-          if (data.applicantPhone) setPhone(data.applicantPhone);
-          if (data.applicantEmail) setEmail(data.applicantEmail);
-          else if (data.email) setEmail(data.email);
+          // Do not auto-fill restaurant profile - user fills in Step 02 manually
           if (data.applicantName) setApplicantOwnerName(data.applicantName);
-          if (data.city) setCity(data.city);
-          if (data.state) setState(data.state);
-          if (data.address) setAddress(data.address);
-          if (data.businessType) setBType(data.businessType as BusinessType);
-
-          // Load approved estimated tables
-          if (typeof data.tableCountEst === 'number') {
-            setTableCount(data.tableCountEst);
-            setUsesTables(data.tableCountEst > 0);
-          }
 
           // Map approved intended platform modules
           if (Array.isArray(data.intendedModules) && data.intendedModules.length > 0) {
@@ -376,14 +345,40 @@ function OnboardingWizardContent() {
     }
   };
 
+
+  const handleMenuFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setMenuImageFile(file);
+    setMenuImageMime(file.type || 'image/jpeg');
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const b64 = event.target?.result as string;
+      setMenuImageBase64(b64);
+      setMenuImagePreview(b64);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveMenuFile = () => {
+    setMenuImageFile(null);
+    setMenuImageBase64('');
+    setMenuImagePreview('');
+  };
+
   const handleRunAiMenu = async () => {
-    if (!aiMenuRawText.trim()) return;
+    if (!aiMenuRawText.trim() && !menuImageBase64) return;
     setAiParsing(true);
     try {
       const res = await fetch('/api/ai/menu-ocr', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rawText: aiMenuRawText }),
+        body: JSON.stringify({
+          rawText: aiMenuRawText,
+          imageBase64: menuImageBase64 || undefined,
+          mimeType: menuImageMime || 'image/jpeg',
+        }),
       });
       const data = await res.json();
       if (res.ok && data.categories && data.categories.length > 0) {
@@ -439,6 +434,11 @@ function OnboardingWizardContent() {
 
   // STEP 11: Final Review & Save to Database
   const handleFinalSubmit = async () => {
+    if (!bType) {
+      alert('Please select your business model in Step 1 before submitting.');
+      setStep(1);
+      return;
+    }
     setSubmitting(true);
     try {
       const targetTenant = tenantId || profile.tenantId;
@@ -457,20 +457,20 @@ function OnboardingWizardContent() {
         logoUrl,
         services,
         modules: selectedModules,
-        hasTables: usesTables,
-        tableCount: usesTables ? tableCount : 0,
-        tableSections: usesTables ? tableSections : [],
+        hasTables: usesTables === true,
+        tableCount: usesTables === true && typeof tableCount === 'number' ? tableCount : 0,
+        tableSections: usesTables === true ? tableSections : [],
         hasEmployees,
         employees: hasEmployees ? staffList : [],
         billingConfig: {
-          taxRate,
-          serviceCharge,
+          taxRate: typeof taxRate === 'number' ? taxRate : 0,
+          serviceCharge: typeof serviceCharge === 'number' ? serviceCharge : 0,
           roundOff,
-          invoicePrefix,
+          invoicePrefix: invoicePrefix.trim() || 'INV-',
           paymentMethods,
         },
         printerConfig: {
-          printerType,
+          printerType: printerType || 'SKIP',
           kotPrinter,
           networkIp,
         },
@@ -492,7 +492,7 @@ function OnboardingWizardContent() {
       }
 
       // Update local state and storage
-      setBusinessType(bType);
+      if (bType) setBusinessType(bType as BusinessType);
       setEnabledModules(selectedModules as any);
       const updatedProfile = {
         ...profile,
@@ -526,7 +526,7 @@ function OnboardingWizardContent() {
           email,
           restaurantName: name,
           city,
-          tableCountEst: usesTables ? tableCount : 0,
+          tableCountEst: usesTables === true && typeof tableCount === 'number' ? tableCount : 0,
           requestedModules: selectedModules,
           submittedAt: new Date().toISOString(),
         }));
@@ -540,7 +540,7 @@ function OnboardingWizardContent() {
       }
 
       // Route to pending-approval screen to await Super Admin approval
-      const targetRedirect = data.redirect || `/pending-approval?tenantId=${targetTenant}&email=${encodeURIComponent(email)}`;
+      const targetRedirect = data.redirect || `/pending-approval?tenantId=${targetTenant}&email=${encodeURIComponent(email || authenticatedEmail)}`;
       if (typeof window !== 'undefined') {
         window.location.href = targetRedirect;
       } else {
@@ -612,7 +612,7 @@ function OnboardingWizardContent() {
           </p>
           <div className="pt-2 space-y-2">
             <Link
-              href={`/pending-approval?tenantId=${tenantId}&email=${encodeURIComponent(email)}`}
+              href={`/pending-approval?tenantId=${tenantId}&email=${encodeURIComponent(email || authenticatedEmail)}`}
               className="w-full py-3 px-4 rounded-xl bg-[#1C1917] hover:bg-black text-white font-bold text-xs flex items-center justify-center space-x-2 transition"
             >
               <RefreshCw className="w-4 h-4" />
@@ -632,7 +632,7 @@ function OnboardingWizardContent() {
           <div className="flex items-center space-x-2">
             <Sparkles className="w-4 h-4 text-[#EA580C] shrink-0" />
             <span>
-              <strong>Setup Wizard:</strong> Configure your business model, feature requests, and tables for Super Admin approval.
+              <strong>Setup Wizard:</strong> Configure your business model, feature preferences, and tables to activate your restaurant workspace.
             </span>
           </div>
           <span className="font-bold px-2.5 py-0.5 rounded-full bg-orange-100 text-[#C2410C] text-[10px] uppercase tracking-wider">
@@ -689,16 +689,17 @@ function OnboardingWizardContent() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 {[
-                  { type: 'RESTAURANT', name: 'Fine / Casual Dine-In', icon: '🍽️', desc: 'Table service, KOTs, split checks' },
-                  { type: 'CAFE', name: 'Cafe & Bistro', icon: '☕', desc: 'Barista stations, pastry counter' },
-                  { type: 'BAKERY', name: 'Bakery & Patisserie', icon: '🥐', desc: 'Weight/item billing, pre-orders' },
-                  { type: 'FAST_FOOD', name: 'Fast Food / QSR', icon: '🍔', desc: 'High-speed billing, order tokens' },
-                  { type: 'CLOUD_KITCHEN', name: 'Cloud Kitchen', icon: '🛵', desc: 'Zomato/Swiggy dispatch, delivery' },
-                  { type: 'FOOD_COURT', name: 'Food Court Outlet', icon: '🏬', desc: 'Rapid counter tokens & buzzer' },
-                  { type: 'BAR', name: 'Bar & Lounge', icon: '🍸', desc: 'Open tabs, drink inventory, lounge' },
-                  { type: 'CUSTOM', name: 'Other Food Venture', icon: '✨', desc: 'Fully configurable workflows' },
+                  { type: 'RESTAURANT', name: 'Fine / Casual Dine-In', icon: Utensils, desc: 'Table service, KOTs, split checks' },
+                  { type: 'CAFE', name: 'Cafe & Bistro', icon: Coffee, desc: 'Barista stations, pastry counter' },
+                  { type: 'BAKERY', name: 'Bakery & Patisserie', icon: Store, desc: 'Weight/item billing, pre-orders' },
+                  { type: 'FAST_FOOD', name: 'Fast Food / QSR', icon: Calculator, desc: 'High-speed billing, order tokens' },
+                  { type: 'CLOUD_KITCHEN', name: 'Cloud Kitchen', icon: ChefHat, desc: 'Zomato/Swiggy dispatch, delivery' },
+                  { type: 'FOOD_COURT', name: 'Food Court Outlet', icon: Building, desc: 'Rapid counter tokens & buzzer' },
+                  { type: 'BAR', name: 'Bar & Lounge', icon: Sparkles, desc: 'Open tabs, drink inventory, lounge' },
+                  { type: 'CUSTOM', name: 'Other Food Venture', icon: LayoutGrid, desc: 'Fully configurable workflows' },
                 ].map((item) => {
                   const isSelected = bType === item.type;
+                  const Icon = item.icon;
                   return (
                     <button
                       key={item.type}
@@ -706,13 +707,6 @@ function OnboardingWizardContent() {
                       onClick={() => {
                         const newType = item.type as BusinessType;
                         setBType(newType);
-                        if (newType === 'CLOUD_KITCHEN' || newType === 'BAKERY' || newType === 'FOOD_COURT') {
-                          setUsesTables(false);
-                          setSelectedModules((prev) => prev.filter((m) => m !== 'TABLES'));
-                        } else {
-                          setUsesTables(true);
-                          setSelectedModules((prev) => (prev.includes('TABLES') ? prev : [...prev, 'TABLES']));
-                        }
                       }}
                       className={`p-4 rounded-2xl border text-left transition-all ${
                         isSelected
@@ -720,17 +714,32 @@ function OnboardingWizardContent() {
                           : 'border-[#E8E6E4] hover:border-[#D6D3D1] hover:bg-[#FAFAF9]'
                       }`}
                     >
-                      <span className="text-2xl block mb-2">{item.icon}</span>
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-2.5 border ${
+                        isSelected 
+                          ? 'bg-[#EA580C]/10 text-[#EA580C] border-[#EA580C]/20' 
+                          : 'bg-[#F5F5F4] text-[#78716C] border-[#E8E6E4]'
+                      }`}>
+                        <Icon className="w-4 h-4 stroke-[2]" />
+                      </div>
                       <span className="text-xs font-bold text-[#1C1917] block">{item.name}</span>
                       <span className="text-[11px] text-[#78716C] mt-1 block leading-relaxed">{item.desc}</span>
                     </button>
                   );
                 })}
               </div>
+
+              {!bType && (
+                <div className="p-3.5 bg-amber-50 border border-amber-200/90 rounded-2xl text-amber-800 text-xs flex items-center space-x-2.5">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span className="font-medium">
+                    Please select a business model above to enable the Continue button.
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
-          {/* STEP 02: Restaurant Profile & Location (REAL DATA from approval) */}
+          {/* STEP 02: Restaurant Profile & Location (Filled by User) */}
           {step === 2 && (
             <div className="space-y-5">
               <div className="border-b border-[#F5F5F4] pb-4">
@@ -741,71 +750,75 @@ function OnboardingWizardContent() {
                   Restaurant Profile & Location
                 </h2>
                 <p className="text-xs sm:text-sm text-[#78716C] mt-1 leading-relaxed">
-                  Official contact details loaded from your approved registration.
+                  Enter your official restaurant contact details and physical address.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
                   <label className="text-xs font-bold text-[#1C1917] block mb-1">
-                    Restaurant Legal / Trade Name
+                    Restaurant Legal / Trade Name <span className="text-[#EA580C]">*</span>
                   </label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-[#D6D3D1] bg-[#FAFAF9] text-xs font-semibold text-[#1C1917] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
-                    placeholder="Restaurant Name"
+                    placeholder="Enter restaurant legal or trade name"
                   />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-[#1C1917] block mb-1">
-                    Official Contact Phone
+                    Official Contact Phone <span className="text-[#EA580C]">*</span>
                   </label>
                   <input
                     type="text"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-[#D6D3D1] bg-[#FAFAF9] text-xs font-semibold text-[#1C1917] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
-                    placeholder="e.g. 9347104569"
+                    placeholder="e.g. +91 98765 43210"
                   />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-[#1C1917] block mb-1">
-                    Manager / Billing Email
+                    Manager / Billing Email <span className="text-[#EA580C]">*</span>
                   </label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-[#D6D3D1] bg-[#FAFAF9] text-xs font-semibold text-[#1C1917] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
-                    placeholder="email@example.com"
+                    placeholder="e.g. manager@restaurant.com"
                   />
                 </div>
                 <div className="sm:col-span-2">
                   <label className="text-xs font-bold text-[#1C1917] block mb-1">
-                    Street Address / Locality
+                    Street Address / Locality <span className="text-[#EA580C]">*</span>
                   </label>
                   <input
                     type="text"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-[#D6D3D1] bg-[#FAFAF9] text-xs font-semibold text-[#1C1917] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
-                    placeholder="Enter street address or area"
+                    placeholder="Enter street address, building, or area"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-[#1C1917] block mb-1">City</label>
+                  <label className="text-xs font-bold text-[#1C1917] block mb-1">
+                    City <span className="text-[#EA580C]">*</span>
+                  </label>
                   <input
                     type="text"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-[#D6D3D1] bg-[#FAFAF9] text-xs font-semibold text-[#1C1917] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
-                    placeholder="City (e.g. teligi)"
+                    placeholder="City (e.g. Bengaluru)"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-[#1C1917] block mb-1">State / Province</label>
+                  <label className="text-xs font-bold text-[#1C1917] block mb-1">
+                    State / Province <span className="text-[#EA580C]">*</span>
+                  </label>
                   <input
                     type="text"
                     value={state}
@@ -815,6 +828,15 @@ function OnboardingWizardContent() {
                   />
                 </div>
               </div>
+
+              {(!name.trim() || !phone.trim() || !email.trim() || !address.trim() || !city.trim() || !state.trim()) && (
+                <div className="p-3.5 bg-amber-50 border border-amber-200/90 rounded-2xl text-amber-800 text-xs flex items-center space-x-2.5">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span className="font-medium">
+                    Please fill in your restaurant profile details above to enable the Continue button.
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
@@ -938,6 +960,15 @@ function OnboardingWizardContent() {
                   );
                 })}
               </div>
+
+              {services.length === 0 && (
+                <div className="p-3.5 bg-amber-50 border border-amber-200/90 rounded-2xl text-amber-800 text-xs flex items-center space-x-2.5">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span className="font-medium">
+                    Please select at least one dining service above to enable the Continue button.
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
@@ -952,11 +983,11 @@ function OnboardingWizardContent() {
                   Platform Modules Activation
                 </h2>
                 <p className="text-xs sm:text-sm text-[#78716C] mt-1 leading-relaxed">
-                  Selected automatically from your approved registration modules.
+                  Select which platform modules and features you want activated for your restaurant.
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[360px] overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
                   { token: 'POS', name: 'POS Terminal', icon: <Calculator className="w-4 h-4" /> },
                   { token: 'TABLES', name: 'Table Floor Map', icon: <LayoutGrid className="w-4 h-4" /> },
@@ -992,6 +1023,15 @@ function OnboardingWizardContent() {
                   );
                 })}
               </div>
+
+              {selectedModules.length === 0 && (
+                <div className="p-3.5 bg-amber-50 border border-amber-200/90 rounded-2xl text-amber-800 text-xs flex items-center space-x-2.5">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span className="font-medium">
+                    Please select at least one platform module above to enable the Continue button.
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
@@ -1015,40 +1055,41 @@ function OnboardingWizardContent() {
                   type="button"
                   onClick={() => setUsesTables(true)}
                   className={`flex-1 p-4 rounded-2xl border text-center transition-all ${
-                    usesTables
+                    usesTables === true
                       ? 'border-[#EA580C] bg-[#FFF8F5] font-bold text-[#EA580C] ring-2 ring-[#EA580C]/20 shadow-sm'
                       : 'border-[#E8E6E4] hover:bg-[#FAFAF9] text-[#78716C]'
                   }`}
                 >
                   <LayoutGrid className="w-6 h-6 mx-auto mb-1 stroke-[2]" />
-                  <span className="text-xs block">Yes, we have tables</span>
+                  <span className="text-xs block font-semibold">Yes, we have tables</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setUsesTables(false)}
                   className={`flex-1 p-4 rounded-2xl border text-center transition-all ${
-                    !usesTables
+                    usesTables === false
                       ? 'border-[#EA580C] bg-[#FFF8F5] font-bold text-[#EA580C] ring-2 ring-[#EA580C]/20 shadow-sm'
                       : 'border-[#E8E6E4] hover:bg-[#FAFAF9] text-[#78716C]'
                   }`}
                 >
                   <Store className="w-6 h-6 mx-auto mb-1 stroke-[2]" />
-                  <span className="text-xs block">No, quick counter only</span>
+                  <span className="text-xs block font-semibold">No, quick counter only</span>
                 </button>
               </div>
 
-              {usesTables && (
+              {usesTables === true && (
                 <div className="space-y-4 pt-3 border-t border-[#F5F5F4]">
                   <div>
                     <label className="text-xs font-bold text-[#1C1917] block mb-1">
-                      Total Seating Tables Count (Estimated {tableCount} Tables in Approval)
+                      Total Seating Tables Count <span className="text-[#EA580C]">*</span>
                     </label>
                     <input
                       type="number"
                       min={1}
                       max={200}
                       value={tableCount}
-                      onChange={(e) => setTableCount(Number(e.target.value))}
+                      onChange={(e) => setTableCount(e.target.value === '' ? '' : Number(e.target.value))}
+                      placeholder="Enter total number of tables (e.g. 12)"
                       className="w-full max-w-xs px-3.5 py-2.5 rounded-xl border border-[#D6D3D1] bg-[#FAFAF9] text-xs font-semibold text-[#1C1917] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
                     />
                   </div>
@@ -1057,23 +1098,29 @@ function OnboardingWizardContent() {
                     <label className="text-xs font-bold text-[#1C1917] block mb-1">
                       Table Sections & Dining Areas
                     </label>
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {tableSections.map((sec, idx) => (
-                        <span
-                          key={idx}
-                          className="inline-flex items-center text-xs px-3 py-1.5 bg-[#F5F5F4] border border-[#E8E6E4] rounded-xl text-[#1C1917] font-semibold"
-                        >
-                          {sec}
-                          <button
-                            type="button"
-                            onClick={() => setTableSections(tableSections.filter((_, i) => i !== idx))}
-                            className="ml-2 text-[#78716C] hover:text-rose-600 font-bold"
+                    {tableSections.length > 0 ? (
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {tableSections.map((sec, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center text-xs px-3 py-1.5 bg-[#F5F5F4] border border-[#E8E6E4] rounded-xl text-[#1C1917] font-semibold"
                           >
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                    </div>
+                            {sec}
+                            <button
+                              type="button"
+                              onClick={() => setTableSections(tableSections.filter((_, i) => i !== idx))}
+                              className="ml-2 text-[#78716C] hover:text-rose-600 font-bold"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-[#78716C] italic mb-2">
+                        No areas added yet. Enter sections below (e.g. Main Dining, AC Hall, Outdoor Terrace).
+                      </p>
+                    )}
                     <div className="flex gap-2">
                       <input
                         type="text"
@@ -1091,6 +1138,24 @@ function OnboardingWizardContent() {
                       </button>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {usesTables === null && (
+                <div className="p-3.5 bg-amber-50 border border-amber-200/90 rounded-2xl text-amber-800 text-xs flex items-center space-x-2.5">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span className="font-medium">
+                    Please select whether your restaurant operates dining tables to enable the Continue button.
+                  </span>
+                </div>
+              )}
+
+              {usesTables === true && (!tableCount || Number(tableCount) <= 0) && (
+                <div className="p-3.5 bg-amber-50 border border-amber-200/90 rounded-2xl text-amber-800 text-xs flex items-center space-x-2.5">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span className="font-medium">
+                    Please enter the total number of seating tables to enable the Continue button.
+                  </span>
                 </div>
               )}
             </div>
@@ -1147,8 +1212,18 @@ function OnboardingWizardContent() {
                             </div>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#F5F5F4] border border-[#E8E6E4] text-[#1C1917]">
-                              {s.role === 'WAITER' ? '🍽️ Waiter' : '👨‍🍳 Kitchen'}
+                            <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#F5F5F4] border border-[#E8E6E4] text-[#1C1917] inline-flex items-center gap-1.5">
+                              {s.role === 'WAITER' ? (
+                                <>
+                                  <ClipboardList className="w-3 h-3 text-blue-600 stroke-[2]" />
+                                  <span>Floor Waiter</span>
+                                </>
+                              ) : (
+                                <>
+                                  <ChefHat className="w-3 h-3 text-amber-600 stroke-[2]" />
+                                  <span>Kitchen Chef</span>
+                                </>
+                              )}
                             </span>
                             <button
                               type="button"
@@ -1176,8 +1251,8 @@ function OnboardingWizardContent() {
                       onChange={(e) => setNewStaffRole(e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-xl border border-[#D6D3D1] bg-[#FAFAF9] text-xs font-bold text-[#1C1917] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
                     >
-                      <option value="WAITER">🍽️ Waiter (Floor & POS)</option>
-                      <option value="KITCHEN">👨‍🍳 Kitchen Staff (KDS)</option>
+                      <option value="WAITER">Floor Waiter (Floor & POS)</option>
+                      <option value="KITCHEN">Kitchen Staff (KDS)</option>
                     </select>
                   </div>
 
@@ -1237,27 +1312,65 @@ function OnboardingWizardContent() {
 
               {menuMode === 'AI' && (
                 <div className="space-y-4">
-                  <div className="p-3.5 bg-[#FFFBEB] border border-[#FDE68A] rounded-2xl text-[#92400E] text-xs flex items-center justify-between">
-                    <span>💡 Gemini AI automatically normalizes menu items into categories, prices, and dietary tags.</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAiMenuRawText(
-                          `Chicken Biryani - 320\nPaneer Butter Masala - 260\nButter Naan - 50\nDal Tadka - 180\nCold Coffee - 90`
-                        );
-                      }}
-                      className="ml-2 text-[11px] underline font-bold hover:text-amber-950 shrink-0"
-                    >
-                      Fill Example
-                    </button>
+                  {/* Photo / File Upload Card for Phone Camera or Desktop */}
+                  <div className="p-5 border-2 border-dashed border-[#E8E6E4] rounded-2xl bg-[#FAFAF9] text-center sm:text-left flex flex-col sm:flex-row items-center gap-5">
+                    {menuImagePreview ? (
+                      <div className="relative group shrink-0">
+                        <img
+                          src={menuImagePreview}
+                          alt="Menu Preview"
+                          className="w-24 h-24 object-cover rounded-xl border border-[#E8E6E4] bg-white p-1 shadow-xs"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleRemoveMenuFile}
+                          className="absolute -top-2 -right-2 bg-rose-600 hover:bg-rose-700 text-white p-1 rounded-full shadow-md text-xs"
+                          title="Remove menu file"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-20 h-20 rounded-2xl border border-[#E8E6E4] bg-white flex flex-col items-center justify-center text-[#A8A29E] shrink-0">
+                        <Camera className="w-8 h-8 stroke-[1.5]" />
+                        <span className="text-[10px] mt-1 font-medium">Menu Photo</span>
+                      </div>
+                    )}
+
+                    <div className="space-y-1.5 flex-1">
+                      <h4 className="text-xs font-bold text-[#1C1917]">
+                        Upload Menu Card Photo or Document
+                      </h4>
+                      <p className="text-[11px] text-[#78716C] leading-relaxed">
+                        Take a photo of your printed menu from your phone or upload an image/PDF. Gemini AI scans all dishes and prices directly.
+                      </p>
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <label className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-xl bg-white border border-[#D6D3D1] hover:bg-[#F5F5F4] text-xs font-bold text-[#1C1917] cursor-pointer shadow-xs transition">
+                          <Upload className="w-3.5 h-3.5 text-[#EA580C]" />
+                          <span>{menuImageFile ? 'Change Photo' : 'Choose Menu File / Photo'}</span>
+                          <input
+                            type="file"
+                            accept="image/*,application/pdf"
+                            onChange={handleMenuFileUpload}
+                            className="hidden"
+                          />
+                        </label>
+                        {menuImageFile && (
+                          <span className="text-xs text-emerald-600 font-semibold self-center flex items-center gap-1">
+                            <Check className="w-3.5 h-3.5" />
+                            {menuImageFile.name} ({(menuImageFile.size / 1024).toFixed(0)} KB)
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   <div>
                     <label className="text-xs font-bold text-[#1C1917] block mb-1">
-                      Menu Text / Paste Raw Items
+                      Or Paste Menu Dishes & Prices Manually (Optional)
                     </label>
                     <textarea
-                      rows={5}
+                      rows={4}
                       value={aiMenuRawText}
                       onChange={(e) => setAiMenuRawText(e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-xl border border-[#D6D3D1] bg-[#FAFAF9] text-xs font-mono text-[#1C1917] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C] leading-relaxed"
@@ -1268,13 +1381,13 @@ function OnboardingWizardContent() {
                   <button
                     type="button"
                     onClick={handleRunAiMenu}
-                    disabled={aiParsing || !aiMenuRawText.trim()}
+                    disabled={aiParsing || (!aiMenuRawText.trim() && !menuImageBase64)}
                     className="py-2.5 px-5 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white font-bold text-xs flex items-center space-x-2 shadow-md transition disabled:opacity-50"
                   >
                     {aiParsing ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Extracting with Gemini...</span>
+                        <span>Scanning & Extracting with Gemini...</span>
                       </>
                     ) : (
                       <>
@@ -1299,7 +1412,7 @@ function OnboardingWizardContent() {
                               {(cat.items || []).map((it: any, j: number) => (
                                 <div key={j} className="flex justify-between items-center text-xs">
                                   <span className="text-[#1C1917] font-medium flex items-center gap-1.5">
-                                    <span>{it.isVeg || it.foodType === 'VEG' ? '🟢' : '🔴'}</span>
+                                    <span className={`w-2 h-2 rounded-full shrink-0 ${it.isVeg || it.foodType === 'VEG' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
                                     <span>{it.name}</span>
                                   </span>
                                   <span className="font-bold text-[#1C1917]">₹{it.price}</span>
@@ -1320,7 +1433,7 @@ function OnboardingWizardContent() {
             </div>
           )}
 
-          {/* STEP 09: Taxation, Hardware & Super Admin Approval (FINAL 100%) */}
+          {/* STEP 09: Taxation, Hardware & Final Submission (FINAL 100%) */}
           {step === 9 && (
             <div className="space-y-6">
               <div className="border-b border-[#F5F5F4] pb-4">
@@ -1328,10 +1441,10 @@ function OnboardingWizardContent() {
                   STEP 09 (FINAL • 100%)
                 </span>
                 <h2 className="text-xl font-extrabold text-[#1C1917] mt-1 tracking-tight">
-                  Billing, Hardware & Admin Approval
+                  Billing, Hardware & Final Submission
                 </h2>
                 <p className="text-xs sm:text-sm text-[#78716C] mt-1 leading-relaxed">
-                  Configure government taxes, receipt printer preferences, and submit your registration for Super Admin approval.
+                  Configure taxation, receipt printer preferences, and submit your registration for account verification.
                 </p>
               </div>
 
@@ -1343,17 +1456,17 @@ function OnboardingWizardContent() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-bold text-[#1C1917] block mb-1">
-                      Standard Tax / GST Rate (%)
+                      Standard Tax / GST Rate (%) <span className="text-[#EA580C]">*</span>
                     </label>
                     <input
                       type="number"
                       value={taxRate}
-                      onChange={(e) => setTaxRate(Number(e.target.value))}
+                      onChange={(e) => setTaxRate(e.target.value === '' ? '' : Number(e.target.value))}
                       className="w-full px-3.5 py-2.5 rounded-xl border border-[#D6D3D1] bg-[#FAFAF9] text-xs font-semibold text-[#1C1917] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
-                      placeholder="5"
+                      placeholder="e.g. 5"
                     />
                     <span className="text-[11px] text-[#78716C] mt-1.5 block">
-                      Standard 5% restaurant GST (CGST 2.5% + SGST 2.5%)
+                      Standard restaurant GST (e.g. 5% = CGST 2.5% + SGST 2.5%)
                     </span>
                   </div>
 
@@ -1364,9 +1477,9 @@ function OnboardingWizardContent() {
                     <input
                       type="number"
                       value={serviceCharge}
-                      onChange={(e) => setServiceCharge(Number(e.target.value))}
+                      onChange={(e) => setServiceCharge(e.target.value === '' ? '' : Number(e.target.value))}
                       className="w-full px-3.5 py-2.5 rounded-xl border border-[#D6D3D1] bg-[#FAFAF9] text-xs font-semibold text-[#1C1917] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
-                      placeholder="0"
+                      placeholder="e.g. 0"
                     />
                     <span className="text-[11px] text-[#78716C] mt-1.5 block">
                       Set 0% if optional or inclusive
@@ -1375,14 +1488,14 @@ function OnboardingWizardContent() {
 
                   <div>
                     <label className="text-xs font-bold text-[#1C1917] block mb-1">
-                      Invoice Prefix
+                      Invoice Prefix <span className="text-[#EA580C]">*</span>
                     </label>
                     <input
                       type="text"
                       value={invoicePrefix}
                       onChange={(e) => setInvoicePrefix(e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-xl border border-[#D6D3D1] bg-[#FAFAF9] text-xs font-mono font-semibold text-[#1C1917] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
-                      placeholder="INV-2026-"
+                      placeholder="e.g. INV-2026-"
                     />
                   </div>
 
@@ -1459,7 +1572,9 @@ function OnboardingWizardContent() {
                   <div className="flex justify-between py-1 border-b border-[#E8E6E4]">
                     <span className="text-[#78716C]">Table Seating</span>
                     <span className="font-bold text-[#1C1917]">
-                      {usesTables ? `${tableCount} Tables (${tableSections.join(', ')})` : 'Disabled (Counter Service)'}
+                      {usesTables === true
+                        ? `${tableCount || 0} Tables (${tableSections.length > 0 ? tableSections.join(', ') : 'Open Seating'})`
+                        : 'Disabled (Counter Service)'}
                     </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-[#E8E6E4]">
@@ -1474,17 +1589,28 @@ function OnboardingWizardContent() {
                   </div>
                   <div className="flex justify-between py-1">
                     <span className="text-[#78716C]">Tax / GST</span>
-                    <span className="font-bold text-[#1C1917]">{taxRate}% GST ({roundOff ? 'Auto Round Off' : 'Exact'})</span>
+                    <span className="font-bold text-[#1C1917]">
+                      {taxRate !== '' ? `${taxRate}% GST` : 'Not set'} ({roundOff ? 'Auto Round Off' : 'Exact'})
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Ready for Super Admin Approval Alert */}
-              <div className="p-4 bg-orange-50 border border-orange-200/90 rounded-2xl text-[#9A3412] text-xs flex items-start space-x-3 shadow-sm">
+              {(!printerType || !invoicePrefix.trim() || taxRate === '') && (
+                <div className="p-3.5 bg-amber-50 border border-amber-200/90 rounded-2xl text-amber-800 text-xs flex items-center space-x-2.5">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span className="font-medium">
+                    Please fill in your GST rate, invoice prefix, and choose a printer option above to enable submission.
+                  </span>
+                </div>
+              )}
+
+              {/* Ready for Verification Alert */}
+              <div className="p-4 bg-orange-50/80 border border-orange-200/90 rounded-2xl text-[#9A3412] text-xs flex items-start space-x-3 shadow-sm">
                 <ShieldCheck className="w-5 h-5 text-[#EA580C] shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <span className="font-bold text-[#7C2D12] text-xs block">
-                    Approval for Admin
+                    Ready for Verification
                   </span>
                   <span className="text-[11px] leading-relaxed block text-[#9A3412]">
                     All 9 onboarding steps are 100% filled. Clicking the button below transmits your registration details directly to the Super Admin portal. Once approved by the administrator, your dynamic restaurant dashboard is immediately generated.
@@ -1510,8 +1636,30 @@ function OnboardingWizardContent() {
             {step < 9 ? (
               <button
                 type="button"
-                onClick={() => setStep((prev) => Math.min(9, prev + 1))}
-                className="px-6 py-2.5 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white font-bold text-xs flex items-center space-x-1.5 shadow-md transition"
+                onClick={() => {
+                  if (step === 1 && !bType) return;
+                  if (step === 2 && (!name.trim() || !phone.trim() || !email.trim() || !address.trim() || !city.trim() || !state.trim())) return;
+                  if (step === 4 && services.length === 0) return;
+                  if (step === 5 && selectedModules.length === 0) return;
+                  if (step === 6 && (usesTables === null || (usesTables === true && (!tableCount || Number(tableCount) <= 0)))) return;
+                  setStep((prev) => Math.min(9, prev + 1));
+                }}
+                disabled={
+                  (step === 1 && !bType) ||
+                  (step === 2 && (!name.trim() || !phone.trim() || !email.trim() || !address.trim() || !city.trim() || !state.trim())) ||
+                  (step === 4 && services.length === 0) ||
+                  (step === 5 && selectedModules.length === 0) ||
+                  (step === 6 && (usesTables === null || (usesTables === true && (!tableCount || Number(tableCount) <= 0))))
+                }
+                className={`px-6 py-2.5 rounded-xl font-bold text-xs flex items-center space-x-1.5 shadow-md transition ${
+                  (step === 1 && !bType) ||
+                  (step === 2 && (!name.trim() || !phone.trim() || !email.trim() || !address.trim() || !city.trim() || !state.trim())) ||
+                  (step === 4 && services.length === 0) ||
+                  (step === 5 && selectedModules.length === 0) ||
+                  (step === 6 && (usesTables === null || (usesTables === true && (!tableCount || Number(tableCount) <= 0))))
+                    ? 'bg-stone-200 text-stone-400 border border-stone-300 opacity-60 cursor-not-allowed shadow-none'
+                    : 'bg-[#EA580C] hover:bg-[#C2410C] text-white cursor-pointer'
+                }`}
               >
                 <span>Continue</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -1520,18 +1668,18 @@ function OnboardingWizardContent() {
               <button
                 type="button"
                 onClick={handleFinalSubmit}
-                disabled={submitting}
-                className="px-7 py-3 rounded-2xl bg-[#EA580C] hover:bg-[#C2410C] text-white font-bold text-xs sm:text-sm flex items-center space-x-2.5 shadow-xl transition-all disabled:opacity-60 ring-4 ring-[#EA580C]/20"
+                disabled={submitting || !printerType || !invoicePrefix.trim() || taxRate === ''}
+                className="px-7 py-3 rounded-2xl bg-[#EA580C] hover:bg-[#C2410C] text-white font-bold text-xs sm:text-sm flex items-center space-x-2.5 shadow-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed ring-4 ring-[#EA580C]/20"
               >
                 {submitting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Submitting to Admin...</span>
+                    <span>Submitting Registration...</span>
                   </>
                 ) : (
                   <>
                     <ShieldCheck className="w-4 h-4" />
-                    <span>Approval for Admin (100% Complete)</span>
+                    <span>Submit Registration for Approval</span>
                     <ArrowRight className="w-4 h-4 ml-1" />
                   </>
                 )}
