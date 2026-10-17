@@ -75,11 +75,7 @@ export function middleware(req: NextRequest) {
     if (req.nextUrl.searchParams.has('code') || req.nextUrl.searchParams.has('token')) {
       return NextResponse.redirect(new URL(`/auth/callback${req.nextUrl.search}`, req.url));
     }
-    const hasSessionCookie =
-      req.cookies.has('saas_session_active') ||
-      Array.from(req.cookies.getAll()).some(
-        (c) => c.name.includes('auth-token') || c.name.startsWith('sb-')
-      );
+    const hasSessionCookie = req.cookies.has('saas_session_active');
     if (hasSessionCookie) {
       return NextResponse.redirect(new URL('/dashboard', req.url));
     }
@@ -87,13 +83,9 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 4. If user visits /login or /register with an active session (and not explicit logout), forward directly to dashboard!
+  // 4. If user visits /login or /register with an approved active session, forward directly to dashboard!
   if ((pathname === '/login' || pathname === '/register') && !req.nextUrl.searchParams.has('logged_out')) {
-    const hasSessionCookie =
-      req.cookies.has('saas_session_active') ||
-      Array.from(req.cookies.getAll()).some(
-        (c) => c.name.includes('auth-token') || c.name.startsWith('sb-')
-      );
+    const hasSessionCookie = req.cookies.has('saas_session_active');
     if (hasSessionCookie) {
       return NextResponse.redirect(new URL('/dashboard', req.url));
     }

@@ -47,12 +47,14 @@ export default function AuthCallbackPage() {
 
         const targetUrl = data.redirect || '/dashboard';
 
-        // 1. If tenant application is awaiting admin review after completing onboarding
-        if (targetUrl.includes('/pending-approval')) {
+        // 1. If user needs to complete setup wizard:
+        if (targetUrl.includes('/onboarding')) {
           if (typeof window !== 'undefined') {
             document.cookie = 'saas_session_active=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
             try {
               localStorage.removeItem('saas_session_active');
+              if (data.tenant) localStorage.setItem('saas_active_tenant', JSON.stringify(data.tenant));
+              if (data.profile) localStorage.setItem('saas_active_profile', JSON.stringify(data.profile));
               localStorage.setItem(
                 'saas_pending_registration',
                 JSON.stringify({
@@ -60,6 +62,7 @@ export default function AuthCallbackPage() {
                   email: userEmail,
                   restaurantName: data.tenant?.name || `${userName}'s Restaurant`,
                   submittedAt: new Date().toISOString(),
+                  onboardingCompleted: false,
                 })
               );
             } catch {}
@@ -70,7 +73,33 @@ export default function AuthCallbackPage() {
           return;
         }
 
-        // 2. Tenant is APPROVED by administrator
+        // 2. If tenant application is awaiting admin review after completing onboarding
+        if (targetUrl.includes('/pending-approval')) {
+          if (typeof window !== 'undefined') {
+            document.cookie = 'saas_session_active=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+            try {
+              localStorage.removeItem('saas_session_active');
+              if (data.tenant) localStorage.setItem('saas_active_tenant', JSON.stringify(data.tenant));
+              if (data.profile) localStorage.setItem('saas_active_profile', JSON.stringify(data.profile));
+              localStorage.setItem(
+                'saas_pending_registration',
+                JSON.stringify({
+                  tenantId: data.tenantId || data.tenant?.id,
+                  email: userEmail,
+                  restaurantName: data.tenant?.name || `${userName}'s Restaurant`,
+                  submittedAt: new Date().toISOString(),
+                  onboardingCompleted: true,
+                })
+              );
+            } catch {}
+            window.location.replace(targetUrl);
+          } else {
+            router.replace(targetUrl);
+          }
+          return;
+        }
+
+        // 3. Tenant is APPROVED by administrator AND Onboarding is Completed
         const activeTenant = data.tenant;
         const activeProfile = data.profile || (activeTenant ? {
           id: `prof-${activeTenant.id}`,
@@ -85,7 +114,7 @@ export default function AuthCallbackPage() {
           currencyCode: 'INR',
           currencySymbol: '₹',
           timezone: 'Asia/Kolkata',
-          onboardingCompleted: data.onboardingCompleted ?? false,
+          onboardingCompleted: data.onboardingCompleted ?? true,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         } : null);
@@ -102,7 +131,7 @@ export default function AuthCallbackPage() {
           permissions: ['*'],
         };
 
-        // Guarantee immediate synchronous persistence in localStorage and cookies
+        // Guarantee immediate synchronous persistence in localStorage and cookies for APPROVED users
         if (typeof window !== 'undefined') {
           try {
             document.cookie = 'saas_session_active=true; path=/; max-age=604800; SameSite=Lax';
@@ -130,7 +159,7 @@ export default function AuthCallbackPage() {
         }
         setSession(activeSessionObj);
 
-        // Direct user to target URL (/onboarding for setup wizard or /dashboard)
+        // Direct user to target URL (/dashboard)
         if (typeof window !== 'undefined') {
           window.location.replace(targetUrl);
         } else {
@@ -252,8 +281,8 @@ export default function AuthCallbackPage() {
       <div className="flex flex-col items-center space-y-4 text-center">
         <Loader2 className="w-10 h-10 animate-spin text-[#EA580C]" />
         <div>
-          <h2 className="text-lg font-bold text-[#1C1917]">Connecting to Your Dashboard...</h2>
-          <p className="text-xs text-[#78716C] mt-1">Preparing your restaurant tables, menu & POS terminal</p>
+          <h2 className="text-lg font-bold text-[#1C1917]">Authenticating Account...</h2>
+          <p className="text-xs text-[#78716C] mt-1">Setting up your restaurant workspace and opening setup wizard...</p>
         </div>
       </div>
     </div>
