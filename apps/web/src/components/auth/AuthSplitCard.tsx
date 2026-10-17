@@ -487,25 +487,15 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-amber-100/30 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute inset-0 bg-[radial-gradient(#EA580C_1px,transparent_1px)] [background-size:28px_28px] opacity-[0.035] pointer-events-none" />
 
-      {/* LEFT PANEL: Visual Showcase Video (Entire video visible with zero cropping/cut) */}
-      <div className="w-full md:w-[45vw] h-64 sm:h-80 md:h-screen shrink-0 relative overflow-hidden bg-stone-950 flex items-center justify-center border-b md:border-b-0 md:border-r border-[#E8E6E4]">
-        {/* Soft ambient background fill */}
+      {/* LEFT PANEL: Visual Showcase Video (Occupies total screen height and full 45% screen width with zero bars and zero cut) */}
+      <div className="w-full md:w-[45vw] h-64 sm:h-80 md:h-screen shrink-0 relative overflow-hidden bg-stone-900 border-b md:border-b-0 md:border-r border-[#E8E6E4]">
         <video
           src={VIDEO_URL}
           autoPlay
           loop
           muted
           playsInline
-          className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-40 scale-110 pointer-events-none"
-        />
-        {/* Primary video: 100% of the entire video visible, NO part is cut */}
-        <video
-          src={VIDEO_URL}
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="w-full h-full object-contain relative z-10 transition-transform duration-700 ease-out"
+          className="w-full h-full object-fill transition-transform duration-700 ease-out"
         />
       </div>
 
