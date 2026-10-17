@@ -72,9 +72,10 @@ export default function AuthCallbackPage() {
           permissions: ['*'],
         };
 
-        // Guarantee immediate synchronous persistence in localStorage so navigation guard passes immediately
+        // Guarantee immediate synchronous persistence in localStorage and cookies so navigation guard passes immediately
         if (typeof window !== 'undefined') {
           try {
+            document.cookie = 'saas_session_active=true; path=/; max-age=604800; SameSite=Lax';
             localStorage.setItem('saas_active_session', JSON.stringify(activeSessionObj));
             if (activeProfile) {
               localStorage.setItem('saas_active_profile', JSON.stringify({ ...activeProfile, onboardingCompleted: true }));

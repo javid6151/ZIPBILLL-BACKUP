@@ -187,7 +187,8 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
         } catch {}
         
         const lateSession = typeof window !== 'undefined' ? localStorage.getItem('saas_active_session') : null;
-        if (!lateSession && (!session?.userId || !session?.email)) {
+        const hasSessionCookie = typeof document !== 'undefined' && document.cookie.includes('saas_session_active=true');
+        if (!lateSession && !hasSessionCookie && (!session?.userId || !session?.email)) {
           router.push('/login');
         }
       }, 400);
@@ -200,7 +201,6 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
     return <div className="min-h-screen w-full bg-background text-main overflow-x-hidden font-sans">{children}</div>;
   }
 
-
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
@@ -212,6 +212,7 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('saas_active_profile');
       localStorage.removeItem('saas_active_business_type');
       localStorage.removeItem('saas_active_tenant');
+      document.cookie = 'saas_session_active=; path=/; max-age=0; SameSite=Lax';
     }
     setSession({
       userId: '',
@@ -223,7 +224,7 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
       deviceId: 'dev-terminal-01',
       isSuperAdmin: false,
     });
-    router.push('/login');
+    router.push('/login?logged_out=1');
   };
 
   const displayedBusinessName = profile.businessName || currentTenant?.name || (session.fullName ? `${session.fullName}'s Store` : 'Restaurant Portal');

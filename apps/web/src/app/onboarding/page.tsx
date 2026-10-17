@@ -548,13 +548,19 @@ function OnboardingWizardContent() {
           <p className="text-xs text-[#78716C] leading-relaxed">
             Please sign in with your approved restaurant email and password to access the setup wizard.
           </p>
-          <div className="pt-2">
+          <div className="pt-2 flex flex-col gap-2">
             <Link
-              href="/login"
+              href="/dashboard"
               className="w-full py-3 px-4 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white font-bold text-xs flex items-center justify-center space-x-2 shadow-md transition"
             >
-              <span>Sign In to Your Account</span>
+              <span>Continue to Dashboard</span>
               <ArrowRight className="w-4 h-4" />
+            </Link>
+            <Link
+              href="/login"
+              className="text-xs text-[#78716C] hover:text-[#1C1917] hover:underline py-1"
+            >
+              Sign In with Another Account
             </Link>
           </div>
         </div>

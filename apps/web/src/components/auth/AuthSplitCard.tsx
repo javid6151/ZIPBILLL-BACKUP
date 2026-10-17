@@ -80,14 +80,27 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
     // 2. Check if a valid Supabase or local storage session exists
     let isActive = true;
     const checkActiveSession = async () => {
+      const isExplicitLoggedOut = window.location.search.includes('logged_out');
+
+      try {
+        const savedSession = localStorage.getItem('saas_active_session');
+        if (savedSession && !isExplicitLoggedOut) {
+          const parsed = JSON.parse(savedSession);
+          if (parsed?.userId && parsed?.email) {
+            // Guarantee cookie is synchronized
+            document.cookie = 'saas_session_active=true; path=/; max-age=604800; SameSite=Lax';
+            window.location.replace('/dashboard');
+            return;
+          }
+        }
+      } catch {}
+
       try {
         const { data } = await supabase.auth.getSession();
-        if (isActive && data.session?.user) {
+        if (isActive && data.session?.user && !isExplicitLoggedOut) {
           const userEmail = data.session.user.email || '';
-          setExistingUser({
-            email: userEmail,
-            fullName: data.session.user.user_metadata?.full_name || userEmail.split('@')[0],
-          });
+          document.cookie = 'saas_session_active=true; path=/; max-age=604800; SameSite=Lax';
+          router.replace('/auth/callback');
           return;
         }
       } catch {}
@@ -119,11 +132,9 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
     void checkActiveSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, authSession) => {
-      if (isActive && authSession?.user) {
-        setExistingUser({
-          email: authSession.user.email,
-          fullName: authSession.user.user_metadata?.full_name || authSession.user.email,
-        });
+      if (isActive && authSession?.user && !window.location.search.includes('logged_out')) {
+        document.cookie = 'saas_session_active=true; path=/; max-age=604800; SameSite=Lax';
+        router.replace('/auth/callback');
       }
     });
 
@@ -151,6 +162,7 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
       localStorage.removeItem('saas_active_profile');
       localStorage.removeItem('saas_active_tenant');
       localStorage.removeItem('saas_active_business_type');
+      document.cookie = 'saas_session_active=; path=/; max-age=0; SameSite=Lax';
     }
     setSession({
       userId: '',
@@ -227,6 +239,7 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
         };
 
         if (typeof window !== 'undefined') {
+          document.cookie = 'saas_session_active=true; path=/; max-age=604800; SameSite=Lax';
           localStorage.setItem('saas_active_session', JSON.stringify(activeSessionObj));
           localStorage.setItem('saas_active_profile', JSON.stringify({ ...activeProfile, onboardingCompleted: true }));
           if (activeTenant) localStorage.setItem('saas_active_tenant', JSON.stringify(activeTenant));
@@ -321,6 +334,7 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
       };
 
       if (typeof window !== 'undefined') {
+        document.cookie = 'saas_session_active=true; path=/; max-age=604800; SameSite=Lax';
         localStorage.setItem('saas_active_session', JSON.stringify(activeSessionObj));
         // Hard replace guarantees fresh hydration with 0 redirect bounce
         window.location.replace('/dashboard');

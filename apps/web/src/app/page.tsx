@@ -28,16 +28,14 @@ export default function RootPage() {
       } catch {}
     }
 
-    const currentEmail = session?.email || savedSession?.email;
-    const isOwner =
-      session &&
-      session.userId &&
-      session.userId !== 'usr-owner-01' &&
-      session.email !== 'owner@restaurant.pos' &&
-      !session.email?.startsWith('test-') &&
-      !session.email?.includes('example.com');
+    const hasCookie = typeof document !== 'undefined' && document.cookie.includes('saas_session_active=true');
+    const hasValidSession = Boolean(
+      (savedSession?.userId && savedSession.userId !== 'usr-owner-01') ||
+      (session?.userId && session.userId !== 'usr-owner-01') ||
+      hasCookie
+    );
 
-    if (currentEmail && (isOwner || savedSession)) {
+    if (hasValidSession) {
       router.replace('/dashboard');
     } else {
       router.replace('/login');

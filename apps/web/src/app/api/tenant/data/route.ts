@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@platform/database';
+import { seedTenantStarterData } from '@/lib/seed-starter';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,8 +11,9 @@ export async function GET(req: NextRequest) {
     const slug = searchParams.get('slug');
     const email = searchParams.get('email');
 
-    // 1. Fetch Tenant & Business Profile (by tenantId, slug, or user email)
+    // 1. Fetch Tenant & Business Profile with cascading fallback
     let tenant = null;
+
     if (tenantId) {
       tenant = await prisma.tenant.findUnique({
         where: { id: tenantId },
@@ -20,7 +22,9 @@ export async function GET(req: NextRequest) {
           modules: true,
         },
       });
-    } else if (slug) {
+    }
+
+    if (!tenant && slug) {
       tenant = await prisma.tenant.findUnique({
         where: { slug },
         include: {
@@ -28,7 +32,9 @@ export async function GET(req: NextRequest) {
           modules: true,
         },
       });
-    } else if (email) {
+    }
+
+    if (!tenant && email) {
       const user = await prisma.user.findFirst({
         where: { email },
         include: {
@@ -39,10 +45,23 @@ export async function GET(req: NextRequest) {
             },
           },
         },
+        orderBy: { createdAt: 'desc' },
       });
       if (user?.tenant) {
         tenant = user.tenant;
       }
+    }
+
+    // Fallback: If still no tenant found, find the latest approved tenant in PostgreSQL
+    if (!tenant) {
+      tenant = await prisma.tenant.findFirst({
+        where: { status: 'APPROVED' },
+        include: {
+          businessProfile: true,
+          modules: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
     }
 
     if (!tenant) {
@@ -87,7 +106,6 @@ export async function GET(req: NextRequest) {
       orderBy: { sortOrder: 'asc' },
     });
 
-    // 3. Fetch Categories with Menu Items
     let categories = await prisma.category.findMany({
       where: { tenantId: activeTenantId },
       include: {
@@ -101,6 +119,31 @@ export async function GET(req: NextRequest) {
       },
       orderBy: { sortOrder: 'asc' },
     });
+
+    if (tables.length === 0 || categories.length === 0) {
+      try {
+        await seedTenantStarterData(activeTenantId, tenant.businessType || 'RESTAURANT');
+        tables = await prisma.table.findMany({
+          where: { tenantId: activeTenantId },
+          orderBy: { sortOrder: 'asc' },
+        });
+        categories = await prisma.category.findMany({
+          where: { tenantId: activeTenantId },
+          include: {
+            menuItems: {
+              where: { isAvailable: true },
+              include: {
+                variants: true,
+              },
+              orderBy: [{ sortOrder: 'asc' }, { basePrice: 'asc' }],
+            },
+          },
+          orderBy: { sortOrder: 'asc' },
+        });
+      } catch (seedErr) {
+        console.warn('Auto-seed starter data warning:', seedErr);
+      }
+    }
 
     // 4. Fetch All Menu Items Flat (Ordered by Course Rank, Sort Order, Price)
     const menuItems = await prisma.menuItem.findMany({

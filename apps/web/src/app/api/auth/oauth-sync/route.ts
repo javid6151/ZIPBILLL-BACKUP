@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
         await seedTenantStarterData(user.tenant.id, user.tenant.businessType || 'RESTAURANT');
       } catch {}
 
-      return NextResponse.json({
+      const response = NextResponse.json({
         success: true,
         isNew: false,
         tenant: user.tenant,
@@ -64,6 +64,15 @@ export async function POST(req: NextRequest) {
           tenantId: user.tenantId,
         },
       });
+
+      response.cookies.set('saas_session_active', 'true', {
+        path: '/',
+        maxAge: 604800,
+        sameSite: 'lax',
+        httpOnly: false,
+      });
+
+      return response;
     }
 
     // 2. First-time login: Create clean restaurant workspace for this user
@@ -297,7 +306,7 @@ export async function POST(req: NextRequest) {
       console.warn('Starter data seeding skipped:', e.message);
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       isNew: true,
       tenant: result.tenant,
@@ -312,6 +321,15 @@ export async function POST(req: NextRequest) {
         tenantId: result.user.tenantId,
       },
     });
+
+    response.cookies.set('saas_session_active', 'true', {
+      path: '/',
+      maxAge: 604800,
+      sameSite: 'lax',
+      httpOnly: false,
+    });
+
+    return response;
   } catch (error: any) {
     console.error('OAuth sync error:', error);
     return NextResponse.json(

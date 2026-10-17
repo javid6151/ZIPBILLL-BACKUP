@@ -1,18 +1,23 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const PUBLIC_EXCLUDED_PREFIXES = [
+const SYSTEM_ASSET_PREFIXES = [
   '/_next',
   '/api',
   '/favicon.ico',
   '/assets',
   '/static',
-  '/login',
-  '/register',
-  '/auth',
-  '/pending-approval',
-  '/verify-email',
 ];
+
+const RESERVED_ROOT_ROUTES = new Set([
+  'login',
+  'register',
+  'auth',
+  'pending-approval',
+  'verify-email',
+  'admin',
+  'tarun',
+]);
 
 const KNOWN_SECTIONS = new Set([
   'dashboard',
@@ -43,9 +48,9 @@ const KNOWN_SECTIONS = new Set([
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // 1. Skip system paths and assets
+  // 1. Skip system paths and static assets
   if (
-    PUBLIC_EXCLUDED_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
+    SYSTEM_ASSET_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
     pathname.includes('.')
   ) {
     return NextResponse.next();
@@ -65,17 +70,43 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/register', req.url));
   }
 
-  // 3. In all other cases, the root entry point opens the register / account creation page
+  // 3. Root entry point:
   if (pathname === '/') {
     if (req.nextUrl.searchParams.has('code') || req.nextUrl.searchParams.has('token')) {
       return NextResponse.redirect(new URL(`/auth/callback${req.nextUrl.search}`, req.url));
     }
-    return NextResponse.redirect(new URL('/register', req.url));
+    const hasSessionCookie =
+      req.cookies.has('saas_session_active') ||
+      Array.from(req.cookies.getAll()).some(
+        (c) => c.name.includes('auth-token') || c.name.startsWith('sb-')
+      );
+    if (hasSessionCookie) {
+      return NextResponse.redirect(new URL('/dashboard', req.url));
+    }
+    // Allow page.tsx to execute client-side session resolution
+    return NextResponse.next();
+  }
+
+  // 4. If user visits /login or /register with an active session (and not explicit logout), forward directly to dashboard!
+  if ((pathname === '/login' || pathname === '/register') && !req.nextUrl.searchParams.has('logged_out')) {
+    const hasSessionCookie =
+      req.cookies.has('saas_session_active') ||
+      Array.from(req.cookies.getAll()).some(
+        (c) => c.name.includes('auth-token') || c.name.startsWith('sb-')
+      );
+    if (hasSessionCookie) {
+      return NextResponse.redirect(new URL('/dashboard', req.url));
+    }
   }
 
   const segments = pathname.split('/').filter(Boolean);
 
-  // 2. Pattern: /:restaurantSlug/:section (e.g., /taste-of-punjab/pos)
+  // 5. Never treat reserved routes as restaurant slugs
+  if (segments.length > 0 && RESERVED_ROOT_ROUTES.has(segments[0])) {
+    return NextResponse.next();
+  }
+
+  // 6. Pattern: /:restaurantSlug/:section (e.g., /taste-of-punjab/pos)
   if (segments.length >= 2) {
     const [potentialSlug, section, ...rest] = segments;
 
@@ -91,7 +122,7 @@ export function middleware(req: NextRequest) {
     }
   }
 
-  // 3. Pattern: /:restaurantSlug alone -> rewrite to /:restaurantSlug/dashboard
+  // 7. Pattern: /:restaurantSlug alone -> rewrite to /:restaurantSlug/dashboard
   if (segments.length === 1) {
     const [potentialSlug] = segments;
     if (!KNOWN_SECTIONS.has(potentialSlug)) {

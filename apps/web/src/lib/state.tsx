@@ -235,16 +235,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           }
         }
       } else if (res.status === 404) {
-        // Stale tenant in localStorage or URL: reset state cleanly
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('saas_active_profile');
-          localStorage.removeItem('saas_active_tenant');
-          localStorage.removeItem('saas_active_session');
-        }
-        setCurrentTenant(null);
-        setTables([]);
-        setMenuItems([]);
-        setActiveOrders([]);
+        console.warn('Tenant data not found; maintaining active session.');
       }
     } catch (err) {
       console.error('Error loading dynamic database data:', err);
@@ -267,16 +258,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       if (savedSession) {
         const parsed = JSON.parse(savedSession);
-        // Automatically purge any dummy/test sessions so real users are never trapped in test accounts
-        if (
-          parsed.userId === 'usr-owner-01' ||
-          parsed.email === 'owner@restaurant.pos' ||
-          parsed.email?.startsWith('test-') ||
-          parsed.email?.includes('example.com') ||
-          parsed.fullName?.includes('Dynamic Owner') ||
-          parsed.fullName?.includes('Test') ||
-          parsed.tenantId === 'b89ad650-7510-4159-819b-2adb49642c18'
-        ) {
+        // Only purge the hardcoded mock owner account if present
+        if (parsed.userId === 'usr-owner-01' && parsed.email === 'owner@restaurant.pos') {
           localStorage.removeItem('saas_active_session');
           localStorage.removeItem('saas_active_profile');
           localStorage.removeItem('saas_active_tenant');

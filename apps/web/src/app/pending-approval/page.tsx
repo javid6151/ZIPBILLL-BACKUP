@@ -255,19 +255,19 @@ function PendingApprovalContent() {
 
               <div className="pt-4 space-y-3">
                 <Link
-                  href={`/onboarding?tenantId=${tenantId}&email=${encodeURIComponent(email)}`}
+                  href="/dashboard"
                   className="w-full py-3.5 px-6 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white font-bold text-sm flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transition-all"
                 >
                   <Sparkles className="w-4 h-4" />
-                  <span>Launch Restaurant Setup Wizard</span>
+                  <span>Enter Restaurant Dashboard</span>
                   <ArrowRight className="w-4 h-4" />
                 </Link>
 
                 <Link
-                  href="/login"
+                  href={`/onboarding?tenantId=${tenantId}&email=${encodeURIComponent(email)}`}
                   className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-stone-50 border border-[#E8E6E4] text-[#1C1917] font-semibold text-xs flex items-center justify-center space-x-1.5 transition"
                 >
-                  <span>Or Sign In to Account First</span>
+                  <span>Optional: Customise in Setup Wizard</span>
                 </Link>
               </div>
             </>

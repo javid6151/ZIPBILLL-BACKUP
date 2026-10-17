@@ -148,7 +148,7 @@ export async function POST(req: NextRequest) {
     // Generate or use Supabase token
     const sessionToken = supabaseToken || `sess_${Date.now()}_${Math.random().toString(36).substring(2)}`;
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       token: sessionToken,
       supabaseToken,
@@ -174,6 +174,15 @@ export async function POST(req: NextRequest) {
       enabledModules,
       redirect: '/dashboard',
     });
+
+    response.cookies.set('saas_session_active', 'true', {
+      path: '/',
+      maxAge: 604800,
+      sameSite: 'lax',
+      httpOnly: false,
+    });
+
+    return response;
   } catch (error: any) {
     console.error('Login API error:', error);
     return NextResponse.json(
