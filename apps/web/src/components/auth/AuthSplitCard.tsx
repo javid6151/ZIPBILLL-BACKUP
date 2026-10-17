@@ -490,53 +490,17 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
       {/* Main Container Card */}
       <div className="relative w-full max-w-[480px] md:max-w-[1020px] bg-white rounded-3xl border border-[#E8E6E4] shadow-[0_25px_60px_-15px_rgba(28,25,23,0.08),0_1px_3px_rgba(0,0,0,0.02)] overflow-hidden flex flex-col md:flex-row md:h-[min(650px,94vh)] my-auto transition-all">
         
-        {/* LEFT PANEL: Visual Showcase & Brand Highlights */}
+        {/* LEFT PANEL: Visual Showcase Video (Clean, No Text Overlays) */}
         <div className="w-full md:w-1/2 h-64 sm:h-72 md:h-full p-3 sm:p-4 shrink-0 flex flex-col">
-          <div className="relative w-full h-full rounded-2xl overflow-hidden bg-stone-900 group shadow-inner flex flex-col justify-between p-6">
+          <div className="relative w-full h-full rounded-2xl overflow-hidden bg-stone-900 group shadow-inner">
             <video
               src={VIDEO_URL}
               autoPlay
               loop
               muted
               playsInline
-              className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105 opacity-80"
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105"
             />
-            {/* Dark gradient overlay for crystal readability */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/60 pointer-events-none" />
-
-            {/* Top brand chip */}
-            <div className="relative z-10 flex items-center justify-between">
-              <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-white text-[11px] font-semibold tracking-wide border border-white/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Enterprise POS System</span>
-              </span>
-              <span className="text-white/60 text-[11px] font-medium hidden sm:inline">v2.4 Production</span>
-            </div>
-
-            {/* Bottom feature badges on video */}
-            <div className="relative z-10 space-y-3">
-              <div className="space-y-1">
-                <h2 className="text-white font-bold text-xl sm:text-2xl tracking-tight leading-snug">
-                  Precision Restaurant POS, Kitchen & Billing
-                </h2>
-                <p className="text-white/70 text-xs leading-relaxed max-w-sm">
-                  Offline-first architecture with instant thermal printing, table map, KDS and GST compliance.
-                </p>
-              </div>
-
-              {/* Floating pill tags */}
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-black/50 backdrop-blur-md text-white text-[10px] font-medium border border-white/10">
-                  ⚡ 0.2s KOT Dispatch
-                </span>
-                <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-black/50 backdrop-blur-md text-white text-[10px] font-medium border border-white/10">
-                  🍽️ Live Table Floor Map
-                </span>
-                <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-black/50 backdrop-blur-md text-white text-[10px] font-medium border border-white/10">
-                  👨‍🍳 Kitchen Queue (KDS)
-                </span>
-              </div>
-            </div>
           </div>
         </div>
 
