@@ -32,6 +32,7 @@ import {
   Eye,
   LogOut,
   X,
+  Menu,
   Check,
   AlertTriangle,
   RefreshCw,
@@ -330,6 +331,7 @@ export default function SuperAdminPortalPage() {
   const [tenantModalTab, setTenantModalTab] = useState<string>('Overview');
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const showToast = (msg: string) => {
     setNotification(msg);
@@ -520,12 +522,26 @@ export default function SuperAdminPortalPage() {
   const openTicketsCount = tickets.filter((t) => t.status === 'OPEN').length;
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background text-main font-sans">
+    <div className="flex h-screen w-screen overflow-hidden bg-background text-main font-sans relative">
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          MOBILE DRAWER BACKDROP
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden transition-opacity"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
           LEFT SIDEBAR: 21 Single-Level Sections
-          No nested sub-items in sidebar! Clean & spacious.
+          Desktop: Fixed Sidebar | Mobile: Slide-over Drawer
           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <aside className="w-[280px] bg-surface border-r border-border flex flex-col select-none flex-shrink-0">
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-[280px] max-w-[85vw] bg-surface border-r border-border flex flex-col select-none flex-shrink-0 transition-transform duration-300 ease-in-out md:static md:translate-x-0 ${
+          mobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'
+        }`}
+      >
         {/* Brand Header */}
         <div className="h-16 px-5 border-b border-border flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -538,9 +554,20 @@ export default function SuperAdminPortalPage() {
             </div>
           </div>
 
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-primary-light text-primary">
-            SaaS Root
-          </span>
+          <div className="flex items-center space-x-2">
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-primary-light text-primary">
+              SaaS Root
+            </span>
+            {/* Close button on mobile */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(false)}
+              className="p-1 rounded-lg text-placeholder hover:text-heading hover:bg-surfaceMuted md:hidden cursor-pointer"
+              title="Close Navigation"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* 21 Clean Navigation Items */}
@@ -558,8 +585,9 @@ export default function SuperAdminPortalPage() {
                 onClick={() => {
                   setActiveSectionId(sec.id);
                   setActiveSubsection(sec.subtabs[0]);
+                  setMobileMenuOpen(false);
                 }}
-                className={`group relative w-full flex items-center justify-between rounded-xl font-medium text-[13px] px-3.5 py-2.5 transition-colors duration-150 ${
+                className={`group relative w-full flex items-center justify-between rounded-xl font-medium text-[13px] px-3.5 py-2.5 transition-colors duration-150 cursor-pointer ${
                   isActive
                     ? 'bg-primary-light text-primary font-semibold'
                     : 'text-secondary hover:text-main hover:bg-surfaceMuted'
@@ -608,7 +636,7 @@ export default function SuperAdminPortalPage() {
                   }
                   window.location.href = '/admin/login';
                 }}
-                className="p-1.5 rounded-lg text-placeholder hover:text-danger hover:bg-danger-bg transition"
+                className="p-1.5 rounded-lg text-placeholder hover:text-danger hover:bg-danger-bg transition cursor-pointer"
                 title="Logout from Admin"
               >
                 <LogOut className="w-4 h-4 stroke-[1.8]" />
@@ -640,16 +668,26 @@ export default function SuperAdminPortalPage() {
           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-background">
         {/* Global Topbar */}
-        <header className="h-16 border-b border-border bg-surface px-6 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2 text-xs font-medium text-muted">
-              <span>SaaS Control Center</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-              <span className="text-heading font-semibold">{currentSection.name}</span>
+        <header className="h-16 border-b border-border bg-surface px-3 sm:px-6 flex items-center justify-between flex-shrink-0 gap-2">
+          <div className="flex items-center space-x-2 sm:space-x-4 min-w-0">
+            {/* Mobile Menu Hamburger */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className="md:hidden p-2 -ml-1 rounded-xl text-secondary hover:text-heading hover:bg-surfaceMuted transition cursor-pointer shrink-0"
+              title="Open Navigation Menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center space-x-1.5 sm:space-x-2 text-xs font-medium text-muted min-w-0 truncate">
+              <span className="hidden sm:inline">SaaS Control Center</span>
+              <ChevronRight className="w-3.5 h-3.5 hidden sm:inline shrink-0" />
+              <span className="text-heading font-semibold truncate">{currentSection.name}</span>
             </div>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
             {/* Global Search across Restaurants, Users, Staff, Requests */}
             <div className="relative">
               <Search className="w-3.5 h-3.5 text-placeholder absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -657,13 +695,13 @@ export default function SuperAdminPortalPage() {
                 type="text"
                 value={globalSearch}
                 onChange={(e) => setGlobalSearch(e.target.value)}
-                placeholder="Global search tenants, users, logs..."
-                className="search-input h-[36px] text-xs pl-8 pr-3 w-64 lg:w-80"
+                placeholder="Search..."
+                className="search-input h-[36px] text-xs pl-8 pr-2.5 sm:pr-3 w-28 xs:w-36 sm:w-52 md:w-64 lg:w-80"
               />
             </div>
 
             {/* System Status Pill */}
-            <div className="hidden sm:inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-medium bg-success-bg text-success border border-emerald-200">
+            <div className="hidden lg:inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-medium bg-success-bg text-success border border-emerald-200">
               <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
               <span>All 12 Microservices Online</span>
             </div>
@@ -672,7 +710,7 @@ export default function SuperAdminPortalPage() {
             <button
               type="button"
               onClick={() => showToast('No pending security alerts.')}
-              className="p-2 rounded-xl text-placeholder hover:text-heading hover:bg-surfaceMuted transition relative"
+              className="p-2 rounded-xl text-placeholder hover:text-heading hover:bg-surfaceMuted transition relative cursor-pointer"
             >
               <Bell className="w-4 h-4 stroke-[1.9]" />
               <span className="w-2 h-2 bg-primary rounded-full absolute top-1.5 right-1.5" />
@@ -684,13 +722,13 @@ export default function SuperAdminPortalPage() {
             SUBSECTIONS BAR: Horizontal Tabs
             Per Spec: "Sidebar -> Section -> Subsection (tabs) -> Detail Page -> Actions"
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        <div className="bg-surface border-b border-border px-6 flex items-center justify-between">
-          <div className="flex space-x-2 overflow-x-auto py-2">
+        <div className="bg-surface border-b border-border px-3 sm:px-6 flex items-center justify-between gap-2">
+          <div className="flex space-x-1.5 sm:space-x-2 overflow-x-auto py-2 min-w-0 no-scrollbar">
             {currentSection.subtabs.map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveSubsection(tab)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap ${
+                className={`px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap shrink-0 cursor-pointer ${
                   activeSubsection === tab
                     ? 'bg-primary-light text-primary'
                     : 'text-secondary hover:text-heading hover:bg-surfaceMuted'
@@ -701,7 +739,7 @@ export default function SuperAdminPortalPage() {
             ))}
           </div>
 
-          <div className="text-xs text-muted">
+          <div className="hidden md:block text-xs text-muted shrink-0">
             Viewing: <strong className="text-heading">{activeSubsection}</strong>
           </div>
         </div>
@@ -709,7 +747,7 @@ export default function SuperAdminPortalPage() {
         {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             SECTION CONTENT SWITCHER
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        <main className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-6">
+        <main className="flex-1 overflow-y-auto p-3.5 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
           {/* Toast Notification */}
           {notification && (
             <div className="p-3 bg-heading text-white rounded-xl text-xs font-semibold flex items-center justify-between shadow-lg">
@@ -751,7 +789,7 @@ export default function SuperAdminPortalPage() {
               </div>
 
               {/* System Alert Banner */}
-              <div className="p-4 bg-primary-soft/40 border border-primary/20 rounded-2xl flex items-center justify-between">
+              <div className="p-4 bg-primary-soft/40 border border-primary/20 rounded-2xl flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
                 <div className="flex items-center space-x-3">
                   <AlertTriangle className="w-5 h-5 text-primary flex-shrink-0" />
                   <div>
@@ -761,7 +799,7 @@ export default function SuperAdminPortalPage() {
                     </p>
                   </div>
                 </div>
-                <button onClick={() => setActiveSectionId('system_monitoring')} className="btn-secondary text-xs py-1.5 px-3">
+                <button onClick={() => setActiveSectionId('system_monitoring')} className="btn-secondary text-xs py-1.5 px-3 self-start sm:self-auto flex-shrink-0">
                   Inspect Metrics
                 </button>
               </div>
@@ -820,12 +858,12 @@ export default function SuperAdminPortalPage() {
           {/* ============================================================ */}
           {activeSectionId === 'registration_requests' && (
             <div className="card p-0 overflow-hidden space-y-0">
-              <div className="p-4 border-b border-borderLight flex items-center justify-between bg-surfaceMuted">
+              <div className="p-4 border-b border-borderLight flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between bg-surfaceMuted">
                 <div>
                   <h3 className="font-semibold text-heading text-sm">Restaurant Onboarding Requests</h3>
                   <p className="text-xs text-muted">Review, verify, and approve incoming restaurant tenant applications</p>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 self-start sm:self-auto">
                   <button className="btn-secondary text-xs py-1.5 px-3">
                     <Download className="w-3.5 h-3.5" />
                     <span>Export CSV</span>
@@ -833,74 +871,76 @@ export default function SuperAdminPortalPage() {
                 </div>
               </div>
 
-              <table className="w-full text-left text-xs">
-                <thead className="bg-surface text-muted uppercase font-semibold border-b border-border">
-                  <tr>
-                    <th className="px-5 py-3">Restaurant & Owner</th>
-                    <th className="px-5 py-3">Type & City</th>
-                    <th className="px-5 py-3">Requested Plan</th>
-                    <th className="px-5 py-3">Modules</th>
-                    <th className="px-5 py-3">Status</th>
-                    <th className="px-5 py-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-borderLight">
-                  {registrations.map((reg) => (
-                    <tr key={reg.id} className="hover:bg-surfaceMuted/50 transition">
-                      <td className="px-5 py-3.5">
-                        <div className="font-semibold text-heading">{reg.restaurantName}</div>
-                        <div className="text-muted text-[11px]">{reg.ownerName || 'Applicant'} • {reg.email || ''}</div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className="capitalize">{(reg.businessType || 'RESTAURANT').toLowerCase()}</span>
-                        <div className="text-muted text-[11px]">{reg.city || 'Bengaluru'}{reg.state ? `, ${reg.state}` : ''}</div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className="font-semibold text-heading">{reg.requestedPlan || 'PRO'}</span>
-                        <div className="text-muted text-[11px]">~{reg.tableCountEst ?? 10} Tables</div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className="px-2 py-0.5 rounded bg-surfaceMuted border border-border text-[10px] font-mono">
-                          {(reg.requestedModules?.length ?? 0)} Modules
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          reg.status === 'APPROVED' ? 'bg-success-bg text-success' :
-                          reg.status === 'PENDING' ? 'bg-amber-100 text-amber-800' :
-                          'bg-danger-bg text-danger'
-                        }`}>
-                          {reg.status || 'PENDING'}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5 text-right space-x-1.5">
-                        <button
-                          onClick={() => setSelectedRegistration(reg)}
-                          className="px-2.5 py-1 rounded bg-surface border border-border hover:bg-surfaceMuted text-heading font-medium"
-                        >
-                          Review Application
-                        </button>
-                        {reg.status === 'PENDING' && (
-                          <>
-                            <button
-                              onClick={() => handleUpdateRegistrationStatus(reg.id, 'APPROVED')}
-                              className="px-2 py-1 rounded bg-success-bg text-success border border-emerald-300 font-bold"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleUpdateRegistrationStatus(reg.id, 'REJECTED')}
-                              className="px-2 py-1 rounded bg-danger-bg text-danger border border-rose-300 font-bold"
-                            >
-                              Reject
-                            </button>
-                          </>
-                        )}
-                      </td>
+              <div className="overflow-x-auto min-w-full">
+                <table className="w-full min-w-[700px] text-left text-xs">
+                  <thead className="bg-surface text-muted uppercase font-semibold border-b border-border">
+                    <tr>
+                      <th className="px-5 py-3">Restaurant & Owner</th>
+                      <th className="px-5 py-3">Type & City</th>
+                      <th className="px-5 py-3">Requested Plan</th>
+                      <th className="px-5 py-3">Modules</th>
+                      <th className="px-5 py-3">Status</th>
+                      <th className="px-5 py-3 text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-borderLight">
+                    {registrations.map((reg) => (
+                      <tr key={reg.id} className="hover:bg-surfaceMuted/50 transition">
+                        <td className="px-5 py-3.5">
+                          <div className="font-semibold text-heading">{reg.restaurantName}</div>
+                          <div className="text-muted text-[11px]">{reg.ownerName || 'Applicant'} • {reg.email || ''}</div>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className="capitalize">{(reg.businessType || 'RESTAURANT').toLowerCase()}</span>
+                          <div className="text-muted text-[11px]">{reg.city || 'Bengaluru'}{reg.state ? `, ${reg.state}` : ''}</div>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className="font-semibold text-heading">{reg.requestedPlan || 'PRO'}</span>
+                          <div className="text-muted text-[11px]">~{reg.tableCountEst ?? 10} Tables</div>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className="px-2 py-0.5 rounded bg-surfaceMuted border border-border text-[10px] font-mono">
+                            {(reg.requestedModules?.length ?? 0)} Modules
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            reg.status === 'APPROVED' ? 'bg-success-bg text-success' :
+                            reg.status === 'PENDING' ? 'bg-amber-100 text-amber-800' :
+                            'bg-danger-bg text-danger'
+                          }`}>
+                            {reg.status || 'PENDING'}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5 text-right space-x-1.5">
+                          <button
+                            onClick={() => setSelectedRegistration(reg)}
+                            className="px-2.5 py-1 rounded bg-surface border border-border hover:bg-surfaceMuted text-heading font-medium"
+                          >
+                            Review Application
+                          </button>
+                          {reg.status === 'PENDING' && (
+                            <>
+                              <button
+                                onClick={() => handleUpdateRegistrationStatus(reg.id, 'APPROVED')}
+                                className="px-2 py-1 rounded bg-success-bg text-success border border-emerald-300 font-bold"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleUpdateRegistrationStatus(reg.id, 'REJECTED')}
+                                className="px-2 py-1 rounded bg-danger-bg text-danger border border-rose-300 font-bold"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
@@ -909,14 +949,14 @@ export default function SuperAdminPortalPage() {
           {/* ============================================================ */}
           {activeSectionId === 'restaurants' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
                 <div>
                   <h3 className="font-semibold text-heading text-sm">Tenant Restaurants Directory</h3>
                   <p className="text-xs text-muted">Manage all active, trial, and suspended restaurant accounts</p>
                 </div>
                 <button
                   onClick={() => showToast('Tenant provisioning wizard initiated.')}
-                  className="btn-primary text-xs py-2 px-3.5"
+                  className="btn-primary text-xs py-2 px-3.5 self-start sm:self-auto flex-shrink-0"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Provision New Tenant</span>
@@ -991,54 +1031,56 @@ export default function SuperAdminPortalPage() {
                   <p className="text-xs text-muted">Platform administrators, restaurant owners, and staff</p>
                 </div>
               </div>
-              <table className="w-full text-left text-xs">
-                <thead className="bg-surface text-muted uppercase font-semibold border-b border-border">
-                  <tr>
-                    <th className="px-5 py-3">User Name & Email</th>
-                    <th className="px-5 py-3">Role</th>
-                    <th className="px-5 py-3">Restaurant Association</th>
-                    <th className="px-5 py-3">Active Sessions</th>
-                    <th className="px-5 py-3">Status</th>
-                    <th className="px-5 py-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-borderLight">
-                  {users.map((u) => (
-                    <tr key={u.id} className="hover:bg-surfaceMuted/50 transition">
-                      <td className="px-5 py-3.5">
-                        <div className="font-semibold text-heading">{u.name}</div>
-                        <div className="text-muted text-[11px]">{u.email}</div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-primary-light text-primary">
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5 text-secondary">{u.restaurantName}</td>
-                      <td className="px-5 py-3.5 font-mono text-muted">{u.sessions} sessions ({u.devices} devices)</td>
-                      <td className="px-5 py-3.5">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-success-bg text-success">
-                          {u.status}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5 text-right space-x-1">
-                        <button
-                          onClick={() => showToast(`Reset password link dispatched to ${u.email}`)}
-                          className="px-2 py-1 rounded border border-border text-[11px] font-medium hover:bg-surfaceMuted"
-                        >
-                          Reset Credentials
-                        </button>
-                        <button
-                          onClick={() => showToast(`All sessions revoked for ${u.name}`)}
-                          className="px-2 py-1 rounded bg-danger-bg text-danger border border-rose-300 text-[11px] font-bold"
-                        >
-                          Revoke Sessions
-                        </button>
-                      </td>
+              <div className="overflow-x-auto min-w-full">
+                <table className="w-full min-w-[700px] text-left text-xs">
+                  <thead className="bg-surface text-muted uppercase font-semibold border-b border-border">
+                    <tr>
+                      <th className="px-5 py-3">User Name & Email</th>
+                      <th className="px-5 py-3">Role</th>
+                      <th className="px-5 py-3">Restaurant Association</th>
+                      <th className="px-5 py-3">Active Sessions</th>
+                      <th className="px-5 py-3">Status</th>
+                      <th className="px-5 py-3 text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-borderLight">
+                    {users.map((u) => (
+                      <tr key={u.id} className="hover:bg-surfaceMuted/50 transition">
+                        <td className="px-5 py-3.5">
+                          <div className="font-semibold text-heading">{u.name}</div>
+                          <div className="text-muted text-[11px]">{u.email}</div>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-primary-light text-primary">
+                            {u.role}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5 text-secondary">{u.restaurantName}</td>
+                        <td className="px-5 py-3.5 font-mono text-muted">{u.sessions} sessions ({u.devices} devices)</td>
+                        <td className="px-5 py-3.5">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-success-bg text-success">
+                            {u.status}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5 text-right space-x-1">
+                          <button
+                            onClick={() => showToast(`Reset password link dispatched to ${u.email}`)}
+                            className="px-2 py-1 rounded border border-border text-[11px] font-medium hover:bg-surfaceMuted"
+                          >
+                            Reset Credentials
+                          </button>
+                          <button
+                            onClick={() => showToast(`All sessions revoked for ${u.name}`)}
+                            className="px-2 py-1 rounded bg-danger-bg text-danger border border-rose-300 text-[11px] font-bold"
+                          >
+                            Revoke Sessions
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
@@ -1053,52 +1095,54 @@ export default function SuperAdminPortalPage() {
                   <p className="text-xs text-muted">Workflow: Submitted → Pending → Assigned → Under Review → Approved / Closed</p>
                 </div>
               </div>
-              <table className="w-full text-left text-xs">
-                <thead className="bg-surface text-muted uppercase font-semibold border-b border-border">
-                  <tr>
-                    <th className="px-5 py-3">Request Details</th>
-                    <th className="px-5 py-3">Type</th>
-                    <th className="px-5 py-3">Restaurant & Submitter</th>
-                    <th className="px-5 py-3">Priority</th>
-                    <th className="px-5 py-3">Status</th>
-                    <th className="px-5 py-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-borderLight">
-                  {requests.map((req) => (
-                    <tr key={req.id} className="hover:bg-surfaceMuted/50 transition">
-                      <td className="px-5 py-3.5 font-semibold text-heading">{req.title}</td>
-                      <td className="px-5 py-3.5 font-mono text-[10px] text-muted">{req.type}</td>
-                      <td className="px-5 py-3.5 text-secondary">{req.restaurantName} ({req.submittedBy})</td>
-                      <td className="px-5 py-3.5">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          req.priority === 'CRITICAL' ? 'bg-danger-bg text-danger' : 'bg-surfaceMuted text-secondary'
-                        }`}>
-                          {req.priority}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
-                          {req.status}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5 text-right space-x-1.5">
-                        <button
-                          onClick={() => {
-                            setRequests((prev) =>
-                              prev.map((r) => (r.id === req.id ? { ...r, status: 'APPROVED' } : r))
-                            );
-                            showToast(`Request ${req.id} approved`);
-                          }}
-                          className="px-2 py-1 rounded bg-success-bg text-success border border-emerald-300 font-bold"
-                        >
-                          Approve
-                        </button>
-                      </td>
+              <div className="overflow-x-auto min-w-full">
+                <table className="w-full min-w-[700px] text-left text-xs">
+                  <thead className="bg-surface text-muted uppercase font-semibold border-b border-border">
+                    <tr>
+                      <th className="px-5 py-3">Request Details</th>
+                      <th className="px-5 py-3">Type</th>
+                      <th className="px-5 py-3">Restaurant & Submitter</th>
+                      <th className="px-5 py-3">Priority</th>
+                      <th className="px-5 py-3">Status</th>
+                      <th className="px-5 py-3 text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-borderLight">
+                    {requests.map((req) => (
+                      <tr key={req.id} className="hover:bg-surfaceMuted/50 transition">
+                        <td className="px-5 py-3.5 font-semibold text-heading">{req.title}</td>
+                        <td className="px-5 py-3.5 font-mono text-[10px] text-muted">{req.type}</td>
+                        <td className="px-5 py-3.5 text-secondary">{req.restaurantName} ({req.submittedBy})</td>
+                        <td className="px-5 py-3.5">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            req.priority === 'CRITICAL' ? 'bg-danger-bg text-danger' : 'bg-surfaceMuted text-secondary'
+                          }`}>
+                            {req.priority}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                            {req.status}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5 text-right space-x-1.5">
+                          <button
+                            onClick={() => {
+                              setRequests((prev) =>
+                                prev.map((r) => (r.id === req.id ? { ...r, status: 'APPROVED' } : r))
+                              );
+                              showToast(`Request ${req.id} approved`);
+                            }}
+                            className="px-2 py-1 rounded bg-success-bg text-success border border-emerald-300 font-bold"
+                          >
+                            Approve
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
@@ -1113,50 +1157,52 @@ export default function SuperAdminPortalPage() {
                   <p className="text-xs text-muted">Direct restaurant owner communication and SLA tracking</p>
                 </div>
               </div>
-              <table className="w-full text-left text-xs">
-                <thead className="bg-surface text-muted uppercase font-semibold border-b border-border">
-                  <tr>
-                    <th className="px-5 py-3">Subject & ID</th>
-                    <th className="px-5 py-3">Restaurant</th>
-                    <th className="px-5 py-3">Category</th>
-                    <th className="px-5 py-3">Priority</th>
-                    <th className="px-5 py-3">Status</th>
-                    <th className="px-5 py-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-borderLight">
-                  {tickets.map((t) => (
-                    <tr key={t.id} className="hover:bg-surfaceMuted/50 transition">
-                      <td className="px-5 py-3.5">
-                        <div className="font-semibold text-heading">{t.subject}</div>
-                        <div className="text-muted text-[11px]">{t.id} • {t.user}</div>
-                      </td>
-                      <td className="px-5 py-3.5">{t.restaurantName}</td>
-                      <td className="px-5 py-3.5 font-mono text-[11px] text-muted">{t.category}</td>
-                      <td className="px-5 py-3.5">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          t.priority === 'HIGH' ? 'bg-danger-bg text-danger' : 'bg-surfaceMuted text-secondary'
-                        }`}>
-                          {t.priority}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
-                          {t.status}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5 text-right">
-                        <button
-                          onClick={() => setSelectedTicket(t)}
-                          className="btn-secondary text-xs py-1 px-3"
-                        >
-                          Open Thread
-                        </button>
-                      </td>
+              <div className="overflow-x-auto min-w-full">
+                <table className="w-full min-w-[700px] text-left text-xs">
+                  <thead className="bg-surface text-muted uppercase font-semibold border-b border-border">
+                    <tr>
+                      <th className="px-5 py-3">Subject & ID</th>
+                      <th className="px-5 py-3">Restaurant</th>
+                      <th className="px-5 py-3">Category</th>
+                      <th className="px-5 py-3">Priority</th>
+                      <th className="px-5 py-3">Status</th>
+                      <th className="px-5 py-3 text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-borderLight">
+                    {tickets.map((t) => (
+                      <tr key={t.id} className="hover:bg-surfaceMuted/50 transition">
+                        <td className="px-5 py-3.5">
+                          <div className="font-semibold text-heading">{t.subject}</div>
+                          <div className="text-muted text-[11px]">{t.id} • {t.user}</div>
+                        </td>
+                        <td className="px-5 py-3.5">{t.restaurantName}</td>
+                        <td className="px-5 py-3.5 font-mono text-[11px] text-muted">{t.category}</td>
+                        <td className="px-5 py-3.5">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            t.priority === 'HIGH' ? 'bg-danger-bg text-danger' : 'bg-surfaceMuted text-secondary'
+                          }`}>
+                            {t.priority}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                            {t.status}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5 text-right">
+                          <button
+                            onClick={() => setSelectedTicket(t)}
+                            className="btn-secondary text-xs py-1 px-3"
+                          >
+                            Open Thread
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
@@ -1222,52 +1268,54 @@ export default function SuperAdminPortalPage() {
           {/* ============================================================ */}
           {activeSectionId === 'audit_logs' && (
             <div className="card p-0 overflow-hidden">
-              <div className="p-4 bg-surfaceMuted border-b border-border flex items-center justify-between">
+              <div className="p-4 bg-surfaceMuted border-b border-border flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
                 <div>
                   <h3 className="font-semibold text-heading text-sm">Immutable Administrator Audit Trail</h3>
                   <p className="text-xs text-muted">Append-only compliance log for forensic tracking and regulatory reviews</p>
                 </div>
                 <button
                   onClick={() => showToast('Audit trail exported securely.')}
-                  className="btn-secondary text-xs py-1.5 px-3"
+                  className="btn-secondary text-xs py-1.5 px-3 self-start sm:self-auto flex-shrink-0"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Export Cryptographic Hash</span>
                 </button>
               </div>
-              <table className="w-full text-left text-xs">
-                <thead className="bg-surface text-muted uppercase font-semibold border-b border-border">
-                  <tr>
-                    <th className="px-5 py-3">Timestamp</th>
-                    <th className="px-5 py-3">Actor & Role</th>
-                    <th className="px-5 py-3">Action</th>
-                    <th className="px-5 py-3">Target Entity</th>
-                    <th className="px-5 py-3">IP Address</th>
-                    <th className="px-5 py-3 text-right">Result</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-borderLight">
-                  {auditLogs.map((log) => (
-                    <tr key={log.id} className="hover:bg-surfaceMuted/50 transition">
-                      <td className="px-5 py-3.5 font-mono text-[11px] text-muted">{log.timestamp}</td>
-                      <td className="px-5 py-3.5">
-                        <span className="font-semibold text-heading">{log.actor}</span>
-                        <div className="text-[10px] text-primary font-bold">{log.actorRole}</div>
-                      </td>
-                      <td className="px-5 py-3.5 font-mono text-xs font-semibold text-heading">{log.action}</td>
-                      <td className="px-5 py-3.5 text-secondary">{log.target}</td>
-                      <td className="px-5 py-3.5 font-mono text-muted text-[11px]">{log.ip}</td>
-                      <td className="px-5 py-3.5 text-right">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          log.result === 'SUCCESS' ? 'bg-success-bg text-success' : 'bg-danger-bg text-danger'
-                        }`}>
-                          {log.result}
-                        </span>
-                      </td>
+              <div className="overflow-x-auto min-w-full">
+                <table className="w-full min-w-[700px] text-left text-xs">
+                  <thead className="bg-surface text-muted uppercase font-semibold border-b border-border">
+                    <tr>
+                      <th className="px-5 py-3">Timestamp</th>
+                      <th className="px-5 py-3">Actor & Role</th>
+                      <th className="px-5 py-3">Action</th>
+                      <th className="px-5 py-3">Target Entity</th>
+                      <th className="px-5 py-3">IP Address</th>
+                      <th className="px-5 py-3 text-right">Result</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-borderLight">
+                    {auditLogs.map((log) => (
+                      <tr key={log.id} className="hover:bg-surfaceMuted/50 transition">
+                        <td className="px-5 py-3.5 font-mono text-[11px] text-muted">{log.timestamp}</td>
+                        <td className="px-5 py-3.5">
+                          <span className="font-semibold text-heading">{log.actor}</span>
+                          <div className="text-[10px] text-primary font-bold">{log.actorRole}</div>
+                        </td>
+                        <td className="px-5 py-3.5 font-mono text-xs font-semibold text-heading">{log.action}</td>
+                        <td className="px-5 py-3.5 text-secondary">{log.target}</td>
+                        <td className="px-5 py-3.5 font-mono text-muted text-[11px]">{log.ip}</td>
+                        <td className="px-5 py-3.5 text-right">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            log.result === 'SUCCESS' ? 'bg-success-bg text-success' : 'bg-danger-bg text-danger'
+                          }`}>
+                            {log.result}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
@@ -1309,11 +1357,11 @@ export default function SuperAdminPortalPage() {
           REGISTRATION APPLICATION REVIEW MODAL
           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {selectedRegistration && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
           <div className="bg-surface rounded-2xl border border-border max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-5 border-b border-borderLight flex items-center justify-between bg-surfaceMuted">
+            <div className="p-4 sm:p-5 border-b border-borderLight flex items-center justify-between bg-surfaceMuted">
               <div>
-                <h3 className="font-semibold text-heading text-lg">{selectedRegistration.restaurantName}</h3>
+                <h3 className="font-semibold text-heading text-base sm:text-lg">{selectedRegistration.restaurantName}</h3>
                 <p className="text-xs text-muted">Application ID: {selectedRegistration.id} • Submitted: {selectedRegistration.date}</p>
               </div>
               <button onClick={() => setSelectedRegistration(null)} className="p-1 rounded text-placeholder hover:text-heading">
@@ -1321,8 +1369,8 @@ export default function SuperAdminPortalPage() {
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto space-y-5 text-xs">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 sm:p-6 overflow-y-auto space-y-5 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <span className="text-muted block font-semibold">Owner Contact</span>
                   <div className="text-heading font-medium">{selectedRegistration.ownerName}</div>
@@ -1366,26 +1414,26 @@ export default function SuperAdminPortalPage() {
               </div>
             </div>
 
-            <div className="p-4 border-t border-borderLight bg-surfaceMuted flex items-center justify-between">
+            <div className="p-4 border-t border-borderLight bg-surfaceMuted flex flex-col sm:flex-row gap-2.5 sm:items-center sm:justify-between">
               <button
                 onClick={() => handleUpdateRegistrationStatus(selectedRegistration.id, 'REQUIRES_INFO')}
-                className="btn-secondary text-xs py-2 px-4"
+                className="btn-secondary text-xs py-2 px-4 w-full sm:w-auto"
               >
                 Request Additional Info
               </button>
 
-              <div className="space-x-2">
+              <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
                 <button
                   onClick={() => handleUpdateRegistrationStatus(selectedRegistration.id, 'REJECTED')}
-                  className="px-4 py-2 rounded-xl bg-danger-bg text-danger border border-rose-300 font-semibold text-xs hover:bg-rose-100 transition"
+                  className="px-3 sm:px-4 py-2 rounded-xl bg-danger-bg text-danger border border-rose-300 font-semibold text-xs hover:bg-rose-100 transition flex-1 sm:flex-initial"
                 >
-                  Reject Application
+                  Reject
                 </button>
                 <button
                   onClick={() => handleUpdateRegistrationStatus(selectedRegistration.id, 'APPROVED')}
-                  className="btn-primary text-xs py-2 px-5"
+                  className="btn-primary text-xs py-2 px-4 sm:px-5 flex-1 sm:flex-initial"
                 >
-                  Approve & Provision Tenant
+                  Approve & Provision
                 </button>
               </div>
             </div>
@@ -1401,19 +1449,19 @@ export default function SuperAdminPortalPage() {
                 Devices, Storage, Activity, Support, Audit
           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {selectedTenant && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
           <div className="bg-surface rounded-2xl border border-border max-w-4xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-5 border-b border-borderLight flex items-center justify-between bg-surfaceMuted">
+            <div className="p-4 sm:p-5 border-b border-borderLight flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between bg-surfaceMuted">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center font-bold text-white shadow-button">
+                <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center font-bold text-white shadow-button shrink-0">
                   <Store className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-heading text-lg">{selectedTenant.name}</h3>
+                  <h3 className="font-semibold text-heading text-base sm:text-lg">{selectedTenant.name}</h3>
                   <p className="text-xs text-muted">Tenant ID: {selectedTenant.id} • Slug: /{selectedTenant.slug}</p>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 self-start sm:self-auto">
                 <a
                   href={`${
                     process.env.NEXT_PUBLIC_APP_URL ||
@@ -1457,10 +1505,10 @@ export default function SuperAdminPortalPage() {
               ))}
             </div>
 
-            <div className="p-6 overflow-y-auto space-y-4 text-xs">
+            <div className="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs">
               {tenantModalTab === 'Overview' && (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="stat-card p-3">
                       <span className="text-[10px] text-muted block uppercase">Status</span>
                       <strong className="text-success text-sm">{selectedTenant.status}</strong>
@@ -1556,18 +1604,18 @@ export default function SuperAdminPortalPage() {
               )}
             </div>
 
-            <div className="p-4 border-t border-borderLight bg-surfaceMuted flex items-center justify-between">
+            <div className="p-4 border-t border-borderLight bg-surfaceMuted flex flex-col-reverse sm:flex-row gap-2.5 sm:items-center sm:justify-between">
               {selectedTenant.status === 'ACTIVE' ? (
                 <button
                   onClick={() => handleToggleTenantStatus(selectedTenant.id, 'SUSPENDED')}
-                  className="px-4 py-2 rounded-xl bg-danger-bg text-danger border border-rose-300 font-semibold text-xs hover:bg-rose-100 transition"
+                  className="px-4 py-2 rounded-xl bg-danger-bg text-danger border border-rose-300 font-semibold text-xs hover:bg-rose-100 transition w-full sm:w-auto"
                 >
                   Suspend Tenant Access
                 </button>
               ) : (
                 <button
                   onClick={() => handleToggleTenantStatus(selectedTenant.id, 'ACTIVE')}
-                  className="btn-primary text-xs py-2 px-4"
+                  className="btn-primary text-xs py-2 px-4 w-full sm:w-auto"
                 >
                   Reactivate Tenant
                 </button>
@@ -1575,7 +1623,7 @@ export default function SuperAdminPortalPage() {
 
               <button
                 onClick={() => setSelectedTenant(null)}
-                className="btn-secondary text-xs py-2 px-5"
+                className="btn-secondary text-xs py-2 px-5 w-full sm:w-auto"
               >
                 Close Control Center
               </button>
@@ -1588,8 +1636,8 @@ export default function SuperAdminPortalPage() {
           SUPPORT TICKET DETAIL MODAL
           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {selectedTicket && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-surface rounded-2xl border border-border max-w-lg w-full shadow-2xl p-6 space-y-4">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-surface rounded-2xl border border-border max-w-lg w-full shadow-2xl p-4 sm:p-6 space-y-4">
             <div className="flex justify-between items-start pb-3 border-b border-borderLight">
               <div>
                 <span className="text-[10px] font-bold text-primary uppercase">{selectedTicket.category} • {selectedTicket.id}</span>
