@@ -118,39 +118,10 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
     return baseHref === '/' ? '/dashboard' : baseHref;
   };
 
-  // If user has not completed onboarding, Setup Wizard MUST come first in front of the page!
+  // Onboarding awareness (soft check without locking the user out of the dashboard)
   React.useEffect(() => {
-    if (!isPublicPage) {
-      let isDone = profile?.onboardingCompleted;
-      let targetTenantId = profile?.tenantId || session?.tenantId || currentTenant?.id || '';
-      let targetEmail = session?.email || profile?.email || '';
-
-      if (typeof window !== 'undefined') {
-        try {
-          const rawProf = localStorage.getItem('saas_active_profile');
-          if (rawProf) {
-            const p = JSON.parse(rawProf);
-            if (typeof p.onboardingCompleted === 'boolean') isDone = p.onboardingCompleted;
-            if (p.tenantId) targetTenantId = p.tenantId;
-            if (p.email) targetEmail = p.email;
-          }
-        } catch {}
-
-        try {
-          const rawSess = localStorage.getItem('saas_active_session');
-          if (rawSess) {
-            const s = JSON.parse(rawSess);
-            if (s.email && !targetEmail) targetEmail = s.email;
-            if (s.tenantId && !targetTenantId) targetTenantId = s.tenantId;
-          }
-        } catch {}
-      }
-
-      if (isDone === false) {
-        router.replace(`/onboarding?tenantId=${targetTenantId}&email=${encodeURIComponent(targetEmail)}`);
-      }
-    }
-  }, [isPublicPage, profile?.onboardingCompleted, profile?.tenantId, session?.tenantId, session?.email, currentTenant?.id, router]);
+    // Kept non-blocking so the dashboard, POS, and all features remain immediately accessible
+  }, []);
 
   // Load effective modules from context or localStorage
   let effectiveModules = (enabledModules as string[]) || [];
@@ -199,15 +170,31 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
     )
   );
 
-  // Check if unauthenticated and redirect to /login
+  // Check if unauthenticated with hydration grace period & Supabase check
   React.useEffect(() => {
     if (!isPublicPage) {
       const savedSession = typeof window !== 'undefined' ? localStorage.getItem('saas_active_session') : null;
-      if (!savedSession && (!session?.userId || !session?.email)) {
-        router.push('/login');
-      }
+      if (savedSession) return;
+      if (session?.userId && session?.email) return;
+
+      // Allow 400ms for state/storage hydration and check Supabase auth session before redirecting
+      const timer = setTimeout(async () => {
+        try {
+          const { data } = await supabase.auth.getSession();
+          if (data?.session?.user) {
+            return; // Supabase session is active
+          }
+        } catch {}
+        
+        const lateSession = typeof window !== 'undefined' ? localStorage.getItem('saas_active_session') : null;
+        if (!lateSession && (!session?.userId || !session?.email)) {
+          router.push('/login');
+        }
+      }, 400);
+
+      return () => clearTimeout(timer);
     }
-  }, [isPublicPage, session, router]);
+  }, [isPublicPage, session?.userId, session?.email, router]);
 
   if (isPublicPage) {
     return <div className="min-h-screen w-full bg-background text-main overflow-x-hidden font-sans">{children}</div>;

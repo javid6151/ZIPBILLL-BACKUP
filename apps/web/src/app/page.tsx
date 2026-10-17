@@ -9,6 +9,14 @@ export default function RootPage() {
   const { session, profile } = useApp();
 
   useEffect(() => {
+    // If redirected to root with OAuth tokens or code, forward to callback immediately!
+    if (typeof window !== 'undefined') {
+      if (window.location.hash.includes('access_token') || window.location.search.includes('code=')) {
+        router.replace(`/auth/callback${window.location.search}${window.location.hash}`);
+        return;
+      }
+    }
+
     let savedProfile: any = null;
     let savedSession: any = null;
     if (typeof window !== 'undefined') {
@@ -30,14 +38,7 @@ export default function RootPage() {
       !session.email?.includes('example.com');
 
     if (currentEmail && (isOwner || savedSession)) {
-      const isCompleted = profile?.onboardingCompleted ?? savedProfile?.onboardingCompleted ?? false;
-      const targetTenantId = profile?.tenantId || savedProfile?.tenantId || session?.tenantId || savedSession?.tenantId || '';
-      
-      if (!isCompleted) {
-        router.replace(`/onboarding?tenantId=${targetTenantId}&email=${encodeURIComponent(currentEmail)}`);
-      } else {
-        router.replace('/dashboard');
-      }
+      router.replace('/dashboard');
     } else {
       router.replace('/login');
     }

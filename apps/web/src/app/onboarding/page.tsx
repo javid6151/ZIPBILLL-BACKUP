@@ -464,7 +464,10 @@ function OnboardingWizardContent() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to save onboarding configuration.');
+        // Keep the server diagnostic available while the request is being
+        // tested.  The generic message alone made database failures appear as
+        // a login/redirect problem.
+        throw new Error(data.details || data.error || 'Failed to save onboarding configuration.');
       }
 
       // Update local state and storage
@@ -507,8 +510,12 @@ function OnboardingWizardContent() {
         console.warn('Silent refresh after onboarding:', e);
       }
 
-      // Route directly to dashboard
-      router.push('/dashboard');
+      // Route directly to dashboard with clean context reload
+      if (typeof window !== 'undefined') {
+        window.location.href = '/dashboard';
+      } else {
+        router.push('/dashboard');
+      }
     } catch (err: any) {
       console.error('Onboarding final submit error:', err);
       alert(err.message || 'Failed to save configuration to database.');

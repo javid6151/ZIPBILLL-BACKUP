@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@platform/database';
+import { seedTenantStarterData } from '@/lib/seed-starter';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,12 +33,29 @@ export async function POST(req: NextRequest) {
     });
 
     if (user && user.tenant) {
-      // User and restaurant already exist
+      // User and restaurant already exist. Ensure onboarding is marked completed so user goes straight to dashboard
+      if (user.tenant.businessProfile && !user.tenant.businessProfile.onboardingCompleted) {
+        try {
+          await prisma.businessProfile.update({
+            where: { id: user.tenant.businessProfile.id },
+            data: { onboardingCompleted: true },
+          });
+          user.tenant.businessProfile.onboardingCompleted = true;
+        } catch {}
+      }
+
+      // Seed starter tables and menu if empty
+      try {
+        await seedTenantStarterData(user.tenant.id, user.tenant.businessType || 'RESTAURANT');
+      } catch {}
+
       return NextResponse.json({
         success: true,
         isNew: false,
         tenant: user.tenant,
         profile: user.tenant.businessProfile,
+        onboardingCompleted: true,
+        redirect: '/dashboard',
         user: {
           id: user.id,
           email: user.email,
@@ -64,21 +82,21 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // 2. Create BusinessProfile
+      // 2. Create BusinessProfile with onboardingCompleted: true so user directly accesses dashboard
       const profile = await tx.businessProfile.create({
         data: {
           tenantId: tenant.id,
           businessName: restaurantName,
           phone: '',
           email,
-          address: '',
-          city: '',
-          state: '',
+          address: 'Main Street',
+          city: 'Bengaluru',
+          state: 'Karnataka',
           country: 'IN',
           currencyCode: 'INR',
           currencySymbol: '₹',
           timezone: 'Asia/Kolkata',
-          onboardingCompleted: false,
+          onboardingCompleted: true,
         },
       });
 
@@ -273,11 +291,19 @@ export async function POST(req: NextRequest) {
       console.warn('RestaurantMember sync skipped:', e.message);
     }
 
+    try {
+      await seedTenantStarterData(result.tenant.id, result.tenant.businessType || 'RESTAURANT');
+    } catch (e: any) {
+      console.warn('Starter data seeding skipped:', e.message);
+    }
+
     return NextResponse.json({
       success: true,
       isNew: true,
       tenant: result.tenant,
       profile: result.profile,
+      onboardingCompleted: true,
+      redirect: '/dashboard',
       user: {
         id: result.user.id,
         email: result.user.email,

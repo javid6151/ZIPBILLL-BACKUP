@@ -67,6 +67,9 @@ export function middleware(req: NextRequest) {
 
   // 3. In all other cases, the root entry point opens the register / account creation page
   if (pathname === '/') {
+    if (req.nextUrl.searchParams.has('code') || req.nextUrl.searchParams.has('token')) {
+      return NextResponse.redirect(new URL(`/auth/callback${req.nextUrl.search}`, req.url));
+    }
     return NextResponse.redirect(new URL('/register', req.url));
   }
 

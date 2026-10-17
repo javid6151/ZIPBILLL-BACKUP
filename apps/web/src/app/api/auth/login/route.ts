@@ -170,12 +170,9 @@ export async function POST(req: NextRequest) {
       } : null,
       profile: user.tenant?.businessProfile || null,
       userSettings,
-      userPreferences,
-      onboardingCompleted,
+      onboardingCompleted: true,
       enabledModules,
-      redirect: !onboardingCompleted
-        ? `/onboarding?tenantId=${user.tenant?.id || ''}&email=${encodeURIComponent(user.email)}`
-        : '/dashboard',
+      redirect: '/dashboard',
     });
   } catch (error: any) {
     console.error('Login API error:', error);

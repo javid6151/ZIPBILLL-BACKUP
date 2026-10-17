@@ -109,10 +109,10 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // 3. Sync Modules strictly according to wizard selection
-      if (Array.isArray(modules)) {
-        const selectedTokens = modules.map((m: any) => String(m).toLowerCase());
-        
+      // 3. Sync Modules strictly according to wizard selection.  Prisma
+      // interactive transactions use one connection, so run these writes in
+      // order instead of concurrent Promise.all calls.
+      if (Array.isArray(modules) && modules.length > 0) {
         // Disable modules that the user did not choose
         await tx.tenantModule.updateMany({
           where: {
@@ -121,20 +121,21 @@ export async function POST(req: NextRequest) {
           data: { isEnabled: false },
         });
 
-        // Enable exactly the user's selected modules
-        for (const mod of modules) {
-          const tokenStr = String(mod).toLowerCase();
+        // De-duplicate selections so a repeated client value cannot violate
+        // the tenant/module unique constraint.
+        const selectedModules = [...new Set(modules.map((mod) => String(mod).toLowerCase()))];
+        for (const moduleToken of selectedModules) {
           await tx.tenantModule.upsert({
             where: {
               tenantId_moduleToken: {
                 tenantId: targetTenantId,
-                moduleToken: tokenStr,
+                moduleToken,
               },
             },
             update: { isEnabled: true },
             create: {
               tenantId: targetTenantId,
-              moduleToken: tokenStr,
+              moduleToken,
               isEnabled: true,
             },
           });
@@ -165,24 +166,26 @@ export async function POST(req: NextRequest) {
           createdSections.push(section);
         }
 
-        // Create tables distributed across sections
+        // Create tables distributed across sections via batch createMany
         const tablesPerSection = Math.ceil(tableCount / (createdSections.length || 1));
         let tableIndex = 1;
+        const tablesData: any[] = [];
         for (const sec of createdSections) {
           for (let j = 0; j < tablesPerSection && tableIndex <= tableCount; j++) {
-            await tx.table.create({
-              data: {
-                tenantId: targetTenantId,
-                sectionId: sec.id,
-                tableNumber: `T${tableIndex}`,
-                tableName: `Table ${tableIndex}`,
-                capacity: tableIndex % 3 === 0 ? 6 : tableIndex % 2 === 0 ? 4 : 2,
-                status: 'AVAILABLE',
-                sortOrder: tableIndex,
-              },
+            tablesData.push({
+              tenantId: targetTenantId,
+              sectionId: sec.id,
+              tableNumber: `T${tableIndex}`,
+              tableName: `Table ${tableIndex}`,
+              capacity: tableIndex % 3 === 0 ? 6 : tableIndex % 2 === 0 ? 4 : 2,
+              status: 'AVAILABLE' as const,
+              sortOrder: tableIndex,
             });
             tableIndex++;
           }
+        }
+        if (tablesData.length > 0) {
+          await tx.table.createMany({ data: tablesData });
         }
       }
 
@@ -233,50 +236,49 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // 6. Store Billing & Printer Settings
+      // 6. Store Billing, Printer, & Services Settings.  Keep this sequential
+      // for the same interactive-transaction connection guarantee.
       await tx.restaurantSetting.upsert({
-        where: {
-          tenantId_key: {
+          where: {
+            tenantId_key: {
+              tenantId: targetTenantId,
+              key: 'billing_config',
+            },
+          },
+          update: { valueJson: billingConfig },
+          create: {
             tenantId: targetTenantId,
             key: 'billing_config',
+            valueJson: billingConfig,
           },
-        },
-        update: { valueJson: billingConfig },
-        create: {
-          tenantId: targetTenantId,
-          key: 'billing_config',
-          valueJson: billingConfig,
-        },
       });
-
       await tx.restaurantSetting.upsert({
-        where: {
-          tenantId_key: {
+          where: {
+            tenantId_key: {
+              tenantId: targetTenantId,
+              key: 'printer_config',
+            },
+          },
+          update: { valueJson: printerConfig },
+          create: {
             tenantId: targetTenantId,
             key: 'printer_config',
+            valueJson: printerConfig,
           },
-        },
-        update: { valueJson: printerConfig },
-        create: {
-          tenantId: targetTenantId,
-          key: 'printer_config',
-          valueJson: printerConfig,
-        },
       });
-
       await tx.restaurantSetting.upsert({
-        where: {
-          tenantId_key: {
+          where: {
+            tenantId_key: {
+              tenantId: targetTenantId,
+              key: 'services_config',
+            },
+          },
+          update: { valueJson: services },
+          create: {
             tenantId: targetTenantId,
             key: 'services_config',
+            valueJson: services,
           },
-        },
-        update: { valueJson: services },
-        create: {
-          tenantId: targetTenantId,
-          key: 'services_config',
-          valueJson: services,
-        },
       });
 
       // 7. Seed initial menu items if passed from AI import
@@ -349,6 +351,9 @@ export async function POST(req: NextRequest) {
       }
 
       return { profile };
+    }, {
+      maxWait: 20000,
+      timeout: 60000,
     });
 
     return NextResponse.json({

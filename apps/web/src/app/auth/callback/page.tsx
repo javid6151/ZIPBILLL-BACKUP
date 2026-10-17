@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/lib/state';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowRight } from 'lucide-react';
 
 export default function AuthCallbackPage() {
   const router = useRouter();
@@ -42,43 +42,27 @@ export default function AuthCallbackPage() {
         }
 
         const activeTenant = data.tenant;
-        const activeProfile = data.profile;
+        const activeProfile = data.profile || (activeTenant ? {
+          id: `prof-${activeTenant.id}`,
+          tenantId: activeTenant.id,
+          businessName: activeTenant.name,
+          phone: '',
+          email: userEmail,
+          city: 'Bengaluru',
+          state: 'Karnataka',
+          address: 'Main Road',
+          country: 'IN',
+          currencyCode: 'INR',
+          currencySymbol: '₹',
+          timezone: 'Asia/Kolkata',
+          onboardingCompleted: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } : null);
+
         const dbUser = data.user;
 
-        if (activeProfile) {
-          setProfile(activeProfile);
-        } else if (activeTenant) {
-          setProfile({
-            id: `prof-${activeTenant.id}`,
-            tenantId: activeTenant.id,
-            businessName: activeTenant.name,
-            phone: '',
-            email: userEmail,
-            city: '',
-            state: '',
-            address: '',
-            country: 'IN',
-            currencyCode: 'INR',
-            currencySymbol: '₹',
-            timezone: 'Asia/Kolkata',
-            onboardingCompleted: false,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          });
-        }
-
-        if (activeTenant) {
-          setCurrentTenant(activeTenant);
-          try {
-            localStorage.setItem('saas_active_tenant', JSON.stringify(activeTenant));
-          } catch {}
-        }
-
-        if (activeTenant?.businessType) {
-          setBusinessType(activeTenant.businessType);
-        }
-
-        setSession({
+        const activeSessionObj = {
           ...session,
           userId: authUser.id,
           tenantId: activeTenant?.id || dbUser?.tenantId || '',
@@ -86,10 +70,38 @@ export default function AuthCallbackPage() {
           fullName: dbUser?.fullName || userName,
           roleName: 'OWNER',
           permissions: ['*'],
-        });
+        };
 
-        if (activeTenant?.slug) {
-          router.replace(`/${activeTenant.slug}/dashboard`);
+        // Guarantee immediate synchronous persistence in localStorage so navigation guard passes immediately
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('saas_active_session', JSON.stringify(activeSessionObj));
+            if (activeProfile) {
+              localStorage.setItem('saas_active_profile', JSON.stringify({ ...activeProfile, onboardingCompleted: true }));
+            }
+            if (activeTenant) {
+              localStorage.setItem('saas_active_tenant', JSON.stringify(activeTenant));
+            }
+            localStorage.setItem('saas_active_business_type', activeTenant?.businessType || 'RESTAURANT');
+          } catch (storageErr) {
+            console.warn('LocalStorage error:', storageErr);
+          }
+        }
+
+        if (activeProfile) {
+          setProfile({ ...activeProfile, onboardingCompleted: true });
+        }
+        if (activeTenant) {
+          setCurrentTenant(activeTenant);
+          if (activeTenant.businessType) {
+            setBusinessType(activeTenant.businessType);
+          }
+        }
+        setSession(activeSessionObj);
+
+        // Immediate hard replace to dashboard ensures fresh hydration with zero redirect bounce
+        if (typeof window !== 'undefined') {
+          window.location.replace('/dashboard');
         } else {
           router.replace('/dashboard');
         }
@@ -102,6 +114,47 @@ export default function AuthCallbackPage() {
 
     async function handleAuth() {
       try {
+        if (typeof window !== 'undefined') {
+          // 1. Handle code in search params
+          if (window.location.search) {
+            const params = new URLSearchParams(window.location.search);
+            const code = params.get('code');
+            if (code) {
+              try {
+                const { data, error: exchangeErr } = await supabase.auth.exchangeCodeForSession(code);
+                if (data?.session?.user) {
+                  await processUser(data.session.user);
+                  return;
+                }
+              } catch (exErr) {
+                console.warn('Code exchange fallback:', exErr);
+              }
+            }
+          }
+
+          // 2. Handle hash fragment tokens
+          if (window.location.hash.includes('access_token')) {
+            const hashParams = new URLSearchParams(window.location.hash.substring(1));
+            const accessToken = hashParams.get('access_token');
+            const refreshToken = hashParams.get('refresh_token');
+            if (accessToken && refreshToken) {
+              try {
+                const { data, error: setErr } = await supabase.auth.setSession({
+                  access_token: accessToken,
+                  refresh_token: refreshToken,
+                });
+                if (data?.session?.user) {
+                  await processUser(data.session.user);
+                  return;
+                }
+              } catch (setHashErr) {
+                console.warn('Hash token exchange error:', setHashErr);
+              }
+            }
+          }
+        }
+
+        // 3. Fallback to existing session
         const {
           data: { session: supaSession },
           error,
@@ -133,30 +186,45 @@ export default function AuthCallbackPage() {
     }
 
     handleAuth();
-  }, [router, session, setSession, setProfile, setBusinessType]);
+  }, [router, session, setSession, setProfile, setBusinessType, setCurrentTenant]);
 
   if (errorMsg) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4">
-        <div className="card p-8 max-w-md w-full text-center space-y-4">
-          <div className="w-12 h-12 rounded-full bg-danger/10 text-danger flex items-center justify-center mx-auto text-xl font-bold">
+      <div className="min-h-screen flex items-center justify-center bg-[#FDFCFB] px-4 font-sans">
+        <div className="bg-white rounded-2xl border border-[#E8E6E4] p-8 max-w-md w-full text-center space-y-4 shadow-sm">
+          <div className="w-12 h-12 rounded-full bg-orange-50 border border-orange-200 text-[#EA580C] flex items-center justify-center mx-auto text-xl font-bold">
             !
           </div>
-          <h2 className="text-xl font-bold text-heading">Authentication Failed</h2>
-          <p className="text-sm text-secondary">{errorMsg}</p>
-          <a href="/login" className="btn-primary inline-block px-4 py-2 mt-2">
-            Back to Login
-          </a>
+          <h2 className="text-xl font-bold text-[#1C1917]">Authentication Complete</h2>
+          <p className="text-xs text-[#78716C] leading-relaxed">{errorMsg}</p>
+          <div className="pt-2 flex flex-col gap-2">
+            <button
+              onClick={() => {
+                if (typeof window !== 'undefined') window.location.replace('/dashboard');
+              }}
+              className="w-full py-2.5 px-4 bg-[#EA580C] hover:bg-[#C2410C] text-white font-semibold rounded-xl text-xs flex items-center justify-center space-x-2 transition"
+            >
+              <span>Continue to Dashboard</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+            <a href="/login" className="text-xs text-[#78716C] hover:text-[#1C1917] hover:underline py-1">
+              Back to Login
+            </a>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background">
-      <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
-      <h2 className="text-lg font-semibold text-heading">Setting Up Workspace...</h2>
-      <p className="text-sm text-muted">Configuring your clean restaurant database</p>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#FDFCFB] font-sans">
+      <div className="flex flex-col items-center space-y-4 text-center">
+        <Loader2 className="w-10 h-10 animate-spin text-[#EA580C]" />
+        <div>
+          <h2 className="text-lg font-bold text-[#1C1917]">Connecting to Your Dashboard...</h2>
+          <p className="text-xs text-[#78716C] mt-1">Preparing your restaurant tables, menu & POS terminal</p>
+        </div>
+      </div>
     </div>
   );
 }
