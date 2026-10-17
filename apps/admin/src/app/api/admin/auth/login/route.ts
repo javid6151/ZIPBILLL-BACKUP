@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            'Access Restricted: Only the master SaaS Super Admin is authorized to access this control plane. Restaurant users must log in on Port 8000.',
+            'Access Restricted: Only authorized SaaS Super Administrators are permitted to access this control plane. Restaurant users should log in through the restaurant portal.',
         },
         { status: 403 }
       );

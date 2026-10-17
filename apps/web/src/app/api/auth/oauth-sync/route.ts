@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
     const slug = `${baseSlug}-${Date.now().toString(36)}`;
 
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Create Tenant with PENDING status (awaiting Admin Approval on Port 9000)
+      // 1. Create Tenant with PENDING status (awaiting platform verification)
       const tenant = await tx.tenant.create({
         data: {
           slug,
@@ -260,7 +260,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // 8. Create RegistrationRequest (PENDING approval for Super Admin review on Port 9000)
+      // 8. Create RegistrationRequest (PENDING approval for platform review)
       await tx.registrationRequest.create({
         data: {
           tenantId: tenant.id,

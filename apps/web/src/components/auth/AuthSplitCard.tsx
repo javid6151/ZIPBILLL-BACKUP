@@ -20,6 +20,8 @@ import {
   Zap,
   ShieldCheck,
   Check,
+  LayoutGrid,
+  ChefHat,
 } from 'lucide-react';
 import { BusinessType } from '@platform/types';
 import { ROLE_DEFAULT_PERMISSIONS } from '@/lib/permission-engine';
@@ -488,14 +490,17 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
 
               {/* Floating pill tags */}
               <div className="flex flex-wrap gap-1.5 pt-1">
-                <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-black/50 backdrop-blur-md text-white text-[10px] font-medium border border-white/10">
-                  ⚡ 0.2s KOT Dispatch
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/50 backdrop-blur-md text-white text-[10px] font-medium border border-white/10">
+                  <Zap className="w-3 h-3 text-amber-400" />
+                  <span>0.2s KOT Dispatch</span>
                 </span>
-                <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-black/50 backdrop-blur-md text-white text-[10px] font-medium border border-white/10">
-                  🍽️ Live Table Floor Map
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/50 backdrop-blur-md text-white text-[10px] font-medium border border-white/10">
+                  <LayoutGrid className="w-3 h-3 text-blue-400" />
+                  <span>Live Table Floor Map</span>
                 </span>
-                <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-black/50 backdrop-blur-md text-white text-[10px] font-medium border border-white/10">
-                  👨‍🍳 Kitchen Queue (KDS)
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/50 backdrop-blur-md text-white text-[10px] font-medium border border-white/10">
+                  <ChefHat className="w-3 h-3 text-emerald-400" />
+                  <span>Kitchen Queue (KDS)</span>
                 </span>
               </div>
             </div>
@@ -508,7 +513,7 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
           {/* Top Bar: Brand Logo & Segmented Mode Switch */}
           <div className="flex items-center justify-between pb-2 border-b border-[#F0EEEB]">
             <Link href="/" className="hover:opacity-90 transition">
-              <ZipBillLogo size="sm" variant="full" />
+              <ZipBillLogo size="sm" variant="full" businessType={mode === 'register' ? bType : undefined} />
             </Link>
 
             {/* Segmented Mode Switch */}
@@ -700,7 +705,8 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
                     {/* CapsLock Warning */}
                     {capsLockActive && (
                       <div className="text-[11px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md flex items-center space-x-1 mt-1 border border-amber-200">
-                        <span>⚠️ Caps Lock is turned ON</span>
+                        <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <span>Caps Lock is turned ON</span>
                       </div>
                     )}
                   </div>

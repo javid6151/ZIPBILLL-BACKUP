@@ -193,7 +193,14 @@ export async function GET(req: NextRequest) {
       where: { tenantId: activeTenantId },
     });
 
-    // 11. Compute Real Live Statistics from Database Orders
+    // 11. Fetch Registered POS Hardware Devices
+    const devices = await prisma.device.findMany({
+      where: { tenantId: activeTenantId, isRevoked: false },
+      orderBy: { lastActiveAt: 'desc' },
+      take: 20,
+    });
+
+    // 12. Compute Real Live Statistics from Database Orders
     const totalOrdersCount = orders.length;
     const completedOrders = orders.filter((o) => o.status === 'COMPLETED' || o.status === 'BILLED');
     const totalRevenuePaise = completedOrders.reduce((acc, o) => acc + (o.grandTotal || 0), 0);
@@ -234,6 +241,7 @@ export async function GET(req: NextRequest) {
       inventory,
       staff,
       settings,
+      devices,
       stats,
       modules: tenant.modules
         ? tenant.modules.filter((m: any) => m.isEnabled).map((m: any) => m.moduleToken)
