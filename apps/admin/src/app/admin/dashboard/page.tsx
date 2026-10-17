@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   LayoutDashboard,
@@ -55,6 +55,7 @@ export type AdminRole =
 
 export interface RegistrationReq {
   id: string;
+  tenantId?: string;
   restaurantName: string;
   ownerName: string;
   applicantName?: string;
@@ -348,6 +349,7 @@ export default function SuperAdminPortalPage() {
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [adminUser, setAdminUser] = useState<{ fullName?: string; email?: string } | null>(null);
+  const [updatingReqIds, setUpdatingReqIds] = useState<Record<string, boolean>>({});
 
   const showToast = (msg: string) => {
     setNotification(msg);
@@ -371,7 +373,99 @@ export default function SuperAdminPortalPage() {
 
   const currentSection = ADMIN_SECTIONS.find((s) => s.id === activeSectionId) || ADMIN_SECTIONS[0];
 
-  // Load real data from PostgreSQL
+  // Real-time synchronization loader
+  const loadData = useCallback(async (silent = false) => {
+    try {
+      const [regRes, tenRes, logRes] = await Promise.all([
+        fetch('/api/admin/registrations').then((r) => r.json()).catch(() => ({})),
+        fetch('/api/admin/tenants').then((r) => r.json()).catch(() => ({})),
+        fetch('/api/admin/audit-logs').then((r) => r.json()).catch(() => ({})),
+      ]);
+
+      if (regRes && Array.isArray(regRes.requests)) {
+        setRegistrations(
+          regRes.requests.map((r: any) => ({
+            id: r.id,
+            tenantId: r.tenantId,
+            restaurantName: r.restaurantName || r.name || 'Unknown Restaurant',
+            ownerName: r.ownerName || r.applicantName || 'Applicant',
+            email: r.email || r.applicantEmail || '',
+            phone: r.phone || r.applicantPhone || '',
+            businessType: r.businessType || 'RESTAURANT',
+            city: r.city || 'Bengaluru',
+            state: r.state || 'Karnataka',
+            address: r.address || '',
+            country: r.country || 'IN',
+            postalCode: r.postalCode || '',
+            currency: r.currency || 'INR',
+            timezone: r.timezone || 'Asia/Kolkata',
+            date: r.date || (r.createdAt ? new Date(r.createdAt).toLocaleDateString() : 'Recent'),
+            status: r.status || 'PENDING',
+            requestedPlan: r.requestedPlan || 'PRO',
+            requestedModules: Array.isArray(r.requestedModules)
+              ? r.requestedModules
+              : Array.isArray(r.intendedModules)
+              ? r.intendedModules
+              : ['pos.billing', 'pos.quick_counter'],
+            tableCountEst: r.tableCountEst ?? r.tableCount ?? 10,
+            services: r.services || [],
+            hasTables: r.hasTables ?? (r.tableCountEst > 0),
+            tableCount: r.tableCount ?? r.tableCountEst ?? 0,
+            tableSections: r.tableSections || [],
+            hasEmployees: r.hasEmployees ?? false,
+            staffList: r.staffList || [],
+            billingConfig: r.billingConfig || null,
+            printerConfig: r.printerConfig || null,
+          }))
+        );
+      } else if (!silent) {
+        setRegistrations([]);
+      }
+
+      if (tenRes && Array.isArray(tenRes.tenants)) {
+        setRestaurants(
+          tenRes.tenants.map((t: any) => ({
+            id: t.id,
+            name: t.name,
+            slug: t.slug,
+            ownerName: t.profile?.businessName || t.name,
+            ownerEmail: t.users?.[0]?.email || 'owner@restaurant.pos',
+            businessType: t.businessType,
+            status: t.status === 'APPROVED' ? 'ACTIVE' : t.status,
+            plan: t.subscription?.planName || 'PRO',
+            mrr: 4999,
+            tablesCount: t.metrics?.tablesCount || 12,
+            staffCount: t.users?.length || 4,
+            devicesCount: 2,
+            enabledModules: t.modules || ['POS', 'TABLES', 'ORDERS', 'KITCHEN', 'BILLING'],
+            createdAt: new Date(t.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          }))
+        );
+      } else if (!silent) {
+        setRestaurants([]);
+      }
+
+      if (logRes?.logs?.length) {
+        setAuditLogs(
+          logRes.logs.map((l: any) => ({
+            id: l.id,
+            timestamp: new Date(l.timestamp).toISOString().replace('T', ' ').slice(0, 19),
+            actor: l.userName || 'System',
+            actorRole: 'SUPER_ADMIN',
+            action: l.action,
+            target: l.entityId || l.entityType,
+            restaurant: l.tenantName || 'Platform',
+            ip: '127.0.0.1 (Supabase Pooler)',
+            result: 'SUCCESS',
+          }))
+        );
+      }
+    } catch (err) {
+      if (!silent) console.error('Failed to load admin live data:', err);
+    }
+  }, []);
+
+  // Real-time synchronization polling
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const sess = localStorage.getItem('saas_admin_session');
@@ -388,114 +482,24 @@ export default function SuperAdminPortalPage() {
         }
       }
     }
-    async function loadData() {
-      try {
-        const [regRes, tenRes, logRes] = await Promise.all([
-          fetch('/api/admin/registrations').then((r) => r.json()).catch(() => ({})),
-          fetch('/api/admin/tenants').then((r) => r.json()).catch(() => ({})),
-          fetch('/api/admin/audit-logs').then((r) => r.json()).catch(() => ({})),
-        ]);
 
-        if (regRes && Array.isArray(regRes.requests)) {
-          setRegistrations(
-            regRes.requests.map((r: any) => ({
-              id: r.id,
-              restaurantName: r.restaurantName || r.name || 'Unknown Restaurant',
-              ownerName: r.ownerName || r.applicantName || 'Applicant',
-              email: r.email || r.applicantEmail || '',
-              phone: r.phone || r.applicantPhone || '',
-              businessType: r.businessType || 'RESTAURANT',
-              city: r.city || 'Bengaluru',
-              state: r.state || 'Karnataka',
-              address: r.address || '',
-              country: r.country || 'IN',
-              postalCode: r.postalCode || '',
-              currency: r.currency || 'INR',
-              timezone: r.timezone || 'Asia/Kolkata',
-              date: r.date || (r.createdAt ? new Date(r.createdAt).toLocaleDateString() : 'Recent'),
-              status: r.status || 'PENDING',
-              requestedPlan: r.requestedPlan || 'PRO',
-              requestedModules: Array.isArray(r.requestedModules)
-                ? r.requestedModules
-                : Array.isArray(r.intendedModules)
-                ? r.intendedModules
-                : ['pos.billing', 'pos.quick_counter'],
-              tableCountEst: r.tableCountEst ?? r.tableCount ?? 10,
-              services: r.services || [],
-              hasTables: r.hasTables ?? (r.tableCountEst > 0),
-              tableCount: r.tableCount ?? r.tableCountEst ?? 0,
-              tableSections: r.tableSections || [],
-              hasEmployees: r.hasEmployees ?? false,
-              staffList: r.staffList || [],
-              billingConfig: r.billingConfig || null,
-              printerConfig: r.printerConfig || null,
-            }))
-          );
-        } else {
-          setRegistrations([]);
-        }
-        if (tenRes && Array.isArray(tenRes.tenants)) {
-          setRestaurants(
-            tenRes.tenants.map((t: any) => ({
-              id: t.id,
-              name: t.name,
-              slug: t.slug,
-              ownerName: t.profile?.businessName || t.name,
-              ownerEmail: t.users?.[0]?.email || 'owner@restaurant.pos',
-              businessType: t.businessType,
-              status: t.status === 'APPROVED' ? 'ACTIVE' : t.status,
-              plan: t.subscription?.planName || 'PRO',
-              mrr: 4999,
-              tablesCount: t.metrics?.tablesCount || 12,
-              staffCount: t.users?.length || 4,
-              devicesCount: 2,
-              enabledModules: t.modules || ['POS', 'TABLES', 'ORDERS', 'KITCHEN', 'BILLING'],
-              createdAt: new Date(t.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-            }))
-          );
-        } else {
-          setRestaurants([]);
-        }
-        if (logRes?.logs?.length) {
-          setAuditLogs(
-            logRes.logs.map((l: any) => ({
-              id: l.id,
-              timestamp: new Date(l.timestamp).toISOString().replace('T', ' ').slice(0, 19),
-              actor: l.userName || 'System',
-              actorRole: 'SUPER_ADMIN',
-              action: l.action,
-              target: l.entityId || l.entityType,
-              restaurant: l.tenantName || 'Platform',
-              ip: '127.0.0.1 (Supabase Pooler)',
-              result: 'SUCCESS',
-            }))
-          );
-        }
-      } catch (err) {
-        console.error('Failed to load admin live data:', err);
-      }
-    }
     loadData();
-  }, []);
+    // Auto-poll every 3.5 seconds so incoming wizard registrations appear in real-time
+    const interval = setInterval(() => {
+      loadData(true);
+    }, 3500);
 
-  // Actions on Registrations with PostgreSQL persistence
+    return () => clearInterval(interval);
+  }, [loadData]);
+
+  // Actions on Registrations with instant optimistic UI & real-time shift to Restaurants
   const handleUpdateRegistrationStatus = async (
     id: string,
     newStatus: RegistrationReq['status']
   ) => {
-    try {
-      await fetch('/api/admin/registrations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          requestId: id,
-          action: newStatus === 'APPROVED' ? 'APPROVE' : 'REJECT',
-        }),
-      });
-    } catch (e) {
-      console.error('Failed to persist registration change:', e);
-    }
+    const targetReg = registrations.find((r) => r.id === id);
 
+    // 1. Instant Optimistic UI Update - Zero UI delay
     setRegistrations((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r))
     );
@@ -503,7 +507,48 @@ export default function SuperAdminPortalPage() {
       setSelectedRegistration({ ...selectedRegistration, status: newStatus });
     }
 
-    // Add Audit Log
+    // 2. Real-time Shift: When APPROVED, immediately inject/shift into active Restaurants tab
+    if (newStatus === 'APPROVED' && targetReg) {
+      setRestaurants((prev) => {
+        const exists = prev.some((t) => t.id === targetReg.tenantId || t.name === targetReg.restaurantName);
+        if (exists) {
+          return prev.map((t) =>
+            t.id === targetReg.tenantId || t.name === targetReg.restaurantName
+              ? { ...t, status: 'ACTIVE' }
+              : t
+          );
+        }
+        return [
+          {
+            id: targetReg.tenantId || `tenant-${targetReg.id}`,
+            name: targetReg.restaurantName,
+            slug: targetReg.restaurantName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-'),
+            ownerName: targetReg.ownerName || targetReg.restaurantName,
+            ownerEmail: targetReg.email || 'owner@restaurant.pos',
+            businessType: targetReg.businessType || 'RESTAURANT',
+            status: 'ACTIVE',
+            plan: targetReg.requestedPlan || 'STARTER',
+            mrr: 1999,
+            tablesCount: targetReg.tableCountEst || targetReg.tableCount || 8,
+            staffCount: 1,
+            devicesCount: 1,
+            enabledModules: targetReg.requestedModules || ['pos.billing', 'pos.quick_counter'],
+            createdAt: 'Just now',
+          },
+          ...prev,
+        ];
+      });
+    } else if (newStatus === 'REJECTED' && targetReg) {
+      setRestaurants((prev) =>
+        prev.map((t) =>
+          t.id === targetReg.tenantId || t.name === targetReg.restaurantName
+            ? { ...t, status: 'SUSPENDED' }
+            : t
+        )
+      );
+    }
+
+    // 3. Instant Audit Log & Toast Notification
     const newLog: AuditRecord = {
       id: `aud-${Date.now()}`,
       timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
@@ -511,16 +556,54 @@ export default function SuperAdminPortalPage() {
       actorRole: adminRole,
       action: `REGISTRATION_${newStatus}`,
       target: id,
-      restaurant: selectedRegistration?.restaurantName || 'Restaurant Registration',
+      restaurant: targetReg?.restaurantName || 'Restaurant Registration',
       ip: '127.0.0.1 (Supabase Pooler)',
       result: 'SUCCESS',
     };
-    setAuditLogs([newLog, ...auditLogs]);
-    showToast(`Registration ${id} status updated to ${newStatus} in PostgreSQL`);
+    setAuditLogs((prev) => [newLog, ...prev]);
+    showToast(
+      newStatus === 'APPROVED'
+        ? `Restaurant "${targetReg?.restaurantName || id}" approved & workspace provisioned in real time!`
+        : `Registration ${id} rejected.`
+    );
+
+    // 4. Background Server Sync (Fast & Non-blocking)
+    setUpdatingReqIds((prev) => ({ ...prev, [id]: true }));
+    try {
+      const res = await fetch('/api/admin/registrations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId: id,
+          action: newStatus === 'APPROVED' ? 'APPROVE' : 'REJECT',
+        }),
+      });
+      if (res.ok) {
+        loadData(true);
+      }
+    } catch (e) {
+      console.error('Failed to persist registration change:', e);
+    } finally {
+      setUpdatingReqIds((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
   };
 
   // Actions on Tenants with PostgreSQL persistence
   const handleToggleTenantStatus = async (id: string, newStatus: RestaurantTenant['status']) => {
+    // 1. Instant optimistic update
+    setRestaurants((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r))
+    );
+    if (selectedTenant?.id === id) {
+      setSelectedTenant({ ...selectedTenant, status: newStatus });
+    }
+    showToast(`Restaurant ${id} updated to ${newStatus}`);
+
+    // 2. Background persistence
     try {
       await fetch('/api/admin/tenants', {
         method: 'POST',
@@ -530,17 +613,10 @@ export default function SuperAdminPortalPage() {
           action: newStatus === 'ACTIVE' ? 'ACTIVATE' : 'SUSPEND',
         }),
       });
+      loadData(true);
     } catch (e) {
       console.error('Failed to persist tenant status:', e);
     }
-
-    setRestaurants((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r))
-    );
-    if (selectedTenant?.id === id) {
-      setSelectedTenant({ ...selectedTenant, status: newStatus });
-    }
-    showToast(`Restaurant ${id} updated to ${newStatus} in PostgreSQL`);
   };
 
   // Calculations
@@ -962,13 +1038,15 @@ export default function SuperAdminPortalPage() {
                             <>
                               <button
                                 onClick={() => handleUpdateRegistrationStatus(reg.id, 'APPROVED')}
-                                className="px-2 py-1 rounded bg-success-bg text-success border border-emerald-300 font-bold"
+                                disabled={updatingReqIds[reg.id]}
+                                className="px-2.5 py-1 rounded bg-success-bg text-success border border-emerald-300 font-bold hover:bg-emerald-100 transition active:scale-95 disabled:opacity-50 cursor-pointer"
                               >
-                                Approve
+                                {updatingReqIds[reg.id] ? 'Approving...' : 'Approve'}
                               </button>
                               <button
                                 onClick={() => handleUpdateRegistrationStatus(reg.id, 'REJECTED')}
-                                className="px-2 py-1 rounded bg-danger-bg text-danger border border-rose-300 font-bold"
+                                disabled={updatingReqIds[reg.id]}
+                                className="px-2.5 py-1 rounded bg-danger-bg text-danger border border-rose-300 font-bold hover:bg-rose-100 transition active:scale-95 disabled:opacity-50 cursor-pointer"
                               >
                                 Reject
                               </button>
@@ -1685,15 +1763,21 @@ export default function SuperAdminPortalPage() {
               <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
                 <button
                   onClick={() => handleUpdateRegistrationStatus(selectedRegistration.id, 'REJECTED')}
-                  className="px-3 sm:px-4 py-2 rounded-xl bg-danger-bg text-danger border border-rose-300 font-semibold text-xs hover:bg-rose-100 transition flex-1 sm:flex-initial"
+                  disabled={updatingReqIds[selectedRegistration.id]}
+                  className="px-3 sm:px-4 py-2 rounded-xl bg-danger-bg text-danger border border-rose-300 font-semibold text-xs hover:bg-rose-100 transition flex-1 sm:flex-initial active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
                   Reject
                 </button>
                 <button
                   onClick={() => handleUpdateRegistrationStatus(selectedRegistration.id, 'APPROVED')}
-                  className="btn-primary text-xs py-2 px-4 sm:px-5 flex-1 sm:flex-initial"
+                  disabled={updatingReqIds[selectedRegistration.id]}
+                  className="btn-primary text-xs py-2 px-4 sm:px-5 flex-1 sm:flex-initial active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
-                  {selectedRegistration.status === 'APPROVED' ? 'Update & Re-provision' : 'Approve & Provision'}
+                  {updatingReqIds[selectedRegistration.id]
+                    ? 'Saving...'
+                    : selectedRegistration.status === 'APPROVED'
+                    ? 'Update & Re-provision'
+                    : 'Approve & Provision'}
                 </button>
               </div>
             </div>

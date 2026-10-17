@@ -8,8 +8,8 @@ export default function AdminRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const loadRequests = async () => {
-    setLoading(true);
+  const loadRequests = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await fetch('/api/admin/tenants');
       if (res.ok) {
@@ -19,16 +19,26 @@ export default function AdminRequestsPage() {
     } catch (e) {
       console.error('Error loading tenants:', e);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadRequests();
+    // Auto-poll every 3.5 seconds so newly registered restaurants appear in real time
+    const interval = setInterval(() => {
+      loadRequests(true);
+    }, 3500);
+    return () => clearInterval(interval);
   }, []);
 
   const handleUpdateStatus = async (tenantId: string, newStatus: 'APPROVED' | 'SUSPENDED') => {
+    // 1. Instant optimistic UI update
+    setRequests((prev) =>
+      prev.map((t) => (t.id === tenantId ? { ...t, status: newStatus } : t))
+    );
     setUpdatingId(tenantId);
+
     try {
       const res = await fetch('/api/admin/tenants', {
         method: 'PATCH',
@@ -36,9 +46,7 @@ export default function AdminRequestsPage() {
         body: JSON.stringify({ id: tenantId, status: newStatus }),
       });
       if (res.ok) {
-        setRequests((prev) =>
-          prev.map((t) => (t.id === tenantId ? { ...t, status: newStatus } : t))
-        );
+        loadRequests(true);
       }
     } catch (err) {
       console.error('Failed to update tenant status:', err);
@@ -59,7 +67,7 @@ export default function AdminRequestsPage() {
           </p>
         </div>
         <button
-          onClick={loadRequests}
+          onClick={() => loadRequests(false)}
           disabled={loading}
           className="btn-secondary text-xs px-3.5 py-2 flex items-center space-x-2"
         >

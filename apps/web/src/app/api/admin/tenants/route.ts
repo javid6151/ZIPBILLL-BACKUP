@@ -46,17 +46,35 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Tenant ID is required.' }, { status: 400 });
     }
 
-    const updated = await prisma.tenant.update({
-      where: { id },
-      data: {
-        ...(status ? { status } : {}),
-        ...(name ? { name } : {}),
-        ...(businessType ? { businessType } : {}),
-      },
-      include: {
-        businessProfile: true,
-      },
-    });
+    const [updated] = await Promise.all([
+      prisma.tenant.update({
+        where: { id },
+        data: {
+          ...(status ? { status } : {}),
+          ...(name ? { name } : {}),
+          ...(businessType ? { businessType } : {}),
+        },
+        include: {
+          businessProfile: true,
+        },
+      }),
+      status === 'APPROVED'
+        ? prisma.businessProfile.updateMany({
+            where: { tenantId: id },
+            data: { onboardingCompleted: true },
+          })
+        : Promise.resolve(null),
+      status
+        ? prisma.registrationRequest.updateMany({
+            where: { tenantId: id },
+            data: {
+              status: status === 'APPROVED' ? 'APPROVED' : status === 'SUSPENDED' ? 'REJECTED' : status,
+              reviewedAt: new Date(),
+              reviewedBy: 'Super Admin',
+            },
+          })
+        : Promise.resolve(null),
+    ]);
 
     return NextResponse.json({
       success: true,
