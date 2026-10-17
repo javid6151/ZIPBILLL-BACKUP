@@ -235,10 +235,11 @@ function OnboardingWizardContent() {
         '';
 
       if (!resolvedTenantId && !resolvedEmail) {
-        // No authenticated session found
+        // No authenticated session found - redirect directly to login
         setAuthVerified(false);
         setApprovalStatus('NOT_FOUND');
         setLoadingInitial(false);
+        router.replace('/login');
         return;
       }
 
@@ -579,24 +580,31 @@ function OnboardingWizardContent() {
           <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center mx-auto">
             <Lock className="w-7 h-7" />
           </div>
-          <h2 className="text-xl font-bold text-[#1C1917]">Protected Setup Wizard</h2>
+          <h2 className="text-xl font-bold text-[#1C1917]">Restaurant Setup Wizard</h2>
           <p className="text-xs text-[#78716C] leading-relaxed">
-            Please sign in with your approved restaurant email and password to access the setup wizard.
+            Please sign in or register your restaurant account to configure and launch your POS workspace.
           </p>
           <div className="pt-2 flex flex-col gap-2">
             <Link
-              href="/dashboard"
+              href="/login"
               className="w-full py-3 px-4 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white font-bold text-xs flex items-center justify-center space-x-2 shadow-md transition"
             >
-              <span>Continue to Dashboard</span>
+              <span>Sign In or Register Restaurant</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
-            <Link
-              href="/login"
-              className="text-xs text-[#78716C] hover:text-[#1C1917] hover:underline py-1"
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  localStorage.clear();
+                  document.cookie = 'saas_session_active=; path=/; max-age=0';
+                  window.location.href = '/login';
+                }
+              }}
+              className="text-xs text-[#78716C] hover:text-[#EA580C] transition py-1 font-medium"
             >
-              Sign In with Another Account
-            </Link>
+              Clear Session & Start Fresh
+            </button>
           </div>
         </div>
       </div>

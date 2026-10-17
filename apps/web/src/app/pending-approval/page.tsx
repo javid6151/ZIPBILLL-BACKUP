@@ -292,7 +292,7 @@ function PendingApprovalContent() {
                     Please submit your 9-step configuration to enable administrator verification.
                   </p>
                   <Link
-                    href={`/onboarding?tenantId=${tenantId}&email=${encodeURIComponent(email)}`}
+                    href={tenantId ? `/onboarding?tenantId=${tenantId}&email=${encodeURIComponent(email)}` : '/login'}
                     className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white text-xs font-bold transition shadow-md"
                   >
                     <span>Open Restaurant Setup Wizard</span>
