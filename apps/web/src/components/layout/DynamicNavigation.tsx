@@ -50,6 +50,10 @@ import {
   Sliders,
   ExternalLink,
   Loader2,
+  Mail,
+  Monitor,
+  CheckCircle2,
+  Sparkles,
 } from 'lucide-react';
 import { BusinessType } from '@platform/types';
 import { ZipBillLogo } from '@/components/brand/ZipBillLogo';

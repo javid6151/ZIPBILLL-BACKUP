@@ -16,6 +16,7 @@ import {
   Mail,
   MapPin,
   Sparkles,
+  ExternalLink,
 } from 'lucide-react';
 import { ZipBillLogo } from '@/components/brand/ZipBillLogo';
 
