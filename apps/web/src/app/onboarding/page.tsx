@@ -10,6 +10,8 @@ import {
   Utensils,
   Calculator,
   LayoutGrid,
+  ClipboardList,
+  Coffee,
   Users,
   Package,
   BarChart3,
@@ -667,16 +669,17 @@ function OnboardingWizardContent() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 {[
-                  { type: 'RESTAURANT', name: 'Fine / Casual Dine-In', icon: '🍽️', desc: 'Table service, KOTs, split checks' },
-                  { type: 'CAFE', name: 'Cafe & Bistro', icon: '☕', desc: 'Barista stations, pastry counter' },
-                  { type: 'BAKERY', name: 'Bakery & Patisserie', icon: '🥐', desc: 'Weight/item billing, pre-orders' },
-                  { type: 'FAST_FOOD', name: 'Fast Food / QSR', icon: '🍔', desc: 'High-speed billing, order tokens' },
-                  { type: 'CLOUD_KITCHEN', name: 'Cloud Kitchen', icon: '🛵', desc: 'Zomato/Swiggy dispatch, delivery' },
-                  { type: 'FOOD_COURT', name: 'Food Court Outlet', icon: '🏬', desc: 'Rapid counter tokens & buzzer' },
-                  { type: 'BAR', name: 'Bar & Lounge', icon: '🍸', desc: 'Open tabs, drink inventory, lounge' },
-                  { type: 'CUSTOM', name: 'Other Food Venture', icon: '✨', desc: 'Fully configurable workflows' },
+                  { type: 'RESTAURANT', name: 'Fine / Casual Dine-In', icon: Utensils, desc: 'Table service, KOTs, split checks' },
+                  { type: 'CAFE', name: 'Cafe & Bistro', icon: Coffee, desc: 'Barista stations, pastry counter' },
+                  { type: 'BAKERY', name: 'Bakery & Patisserie', icon: Store, desc: 'Weight/item billing, pre-orders' },
+                  { type: 'FAST_FOOD', name: 'Fast Food / QSR', icon: Calculator, desc: 'High-speed billing, order tokens' },
+                  { type: 'CLOUD_KITCHEN', name: 'Cloud Kitchen', icon: ChefHat, desc: 'Zomato/Swiggy dispatch, delivery' },
+                  { type: 'FOOD_COURT', name: 'Food Court Outlet', icon: Building, desc: 'Rapid counter tokens & buzzer' },
+                  { type: 'BAR', name: 'Bar & Lounge', icon: Sparkles, desc: 'Open tabs, drink inventory, lounge' },
+                  { type: 'CUSTOM', name: 'Other Food Venture', icon: LayoutGrid, desc: 'Fully configurable workflows' },
                 ].map((item) => {
                   const isSelected = bType === item.type;
+                  const Icon = item.icon;
                   return (
                     <button
                       key={item.type}
@@ -691,7 +694,13 @@ function OnboardingWizardContent() {
                           : 'border-[#E8E6E4] hover:border-[#D6D3D1] hover:bg-[#FAFAF9]'
                       }`}
                     >
-                      <span className="text-2xl block mb-2">{item.icon}</span>
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-2.5 border ${
+                        isSelected 
+                          ? 'bg-[#EA580C]/10 text-[#EA580C] border-[#EA580C]/20' 
+                          : 'bg-[#F5F5F4] text-[#78716C] border-[#E8E6E4]'
+                      }`}>
+                        <Icon className="w-4 h-4 stroke-[2]" />
+                      </div>
                       <span className="text-xs font-bold text-[#1C1917] block">{item.name}</span>
                       <span className="text-[11px] text-[#78716C] mt-1 block leading-relaxed">{item.desc}</span>
                     </button>
@@ -1183,8 +1192,18 @@ function OnboardingWizardContent() {
                             </div>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#F5F5F4] border border-[#E8E6E4] text-[#1C1917]">
-                              {s.role === 'WAITER' ? '🍽️ Waiter' : '👨‍🍳 Kitchen'}
+                            <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#F5F5F4] border border-[#E8E6E4] text-[#1C1917] inline-flex items-center gap-1.5">
+                              {s.role === 'WAITER' ? (
+                                <>
+                                  <ClipboardList className="w-3 h-3 text-blue-600 stroke-[2]" />
+                                  <span>Floor Waiter</span>
+                                </>
+                              ) : (
+                                <>
+                                  <ChefHat className="w-3 h-3 text-amber-600 stroke-[2]" />
+                                  <span>Kitchen Chef</span>
+                                </>
+                              )}
                             </span>
                             <button
                               type="button"
@@ -1212,8 +1231,8 @@ function OnboardingWizardContent() {
                       onChange={(e) => setNewStaffRole(e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-xl border border-[#D6D3D1] bg-[#FAFAF9] text-xs font-bold text-[#1C1917] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
                     >
-                      <option value="WAITER">🍽️ Waiter (Floor & POS)</option>
-                      <option value="KITCHEN">👨‍🍳 Kitchen Staff (KDS)</option>
+                      <option value="WAITER">Floor Waiter (Floor & POS)</option>
+                      <option value="KITCHEN">Kitchen Staff (KDS)</option>
                     </select>
                   </div>
 
@@ -1373,7 +1392,7 @@ function OnboardingWizardContent() {
                               {(cat.items || []).map((it: any, j: number) => (
                                 <div key={j} className="flex justify-between items-center text-xs">
                                   <span className="text-[#1C1917] font-medium flex items-center gap-1.5">
-                                    <span>{it.isVeg || it.foodType === 'VEG' ? '🟢' : '🔴'}</span>
+                                    <span className={`w-2 h-2 rounded-full shrink-0 ${it.isVeg || it.foodType === 'VEG' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
                                     <span>{it.name}</span>
                                   </span>
                                   <span className="font-bold text-[#1C1917]">₹{it.price}</span>

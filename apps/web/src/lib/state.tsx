@@ -81,6 +81,8 @@ interface AppContextType {
   setStaff: React.Dispatch<React.SetStateAction<any[]>>;
   inventory: any[];
   setInventory: React.Dispatch<React.SetStateAction<any[]>>;
+  devices: any[];
+  setDevices: React.Dispatch<React.SetStateAction<any[]>>;
   currentTenant: { id: string; name: string; slug: string; businessType: string } | null;
   setCurrentTenant: (t: { id: string; name: string; slug: string; businessType: string } | null) => void;
   availableTenants: Array<{ id: string; name: string; slug: string; businessType: string }>;
@@ -129,6 +131,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
   const [inventory, setInventory] = useState<any[]>([]);
+  const [devices, setDevices] = useState<any[]>([]);
   const [stats, setStats] = useState({
     totalRevenue: 0,
     totalOrders: 0,
@@ -217,6 +220,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setCustomers(data.customers || []);
         setExpenses(data.expenses || []);
         if (data.inventory) setInventory(data.inventory);
+        if (data.devices) setDevices(data.devices);
         if (data.staff) setStaff(data.staff);
         if (data.stats) setStats(data.stats);
         if (data.tenant) {
@@ -576,6 +580,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setStaff,
         inventory,
         setInventory,
+        devices,
+        setDevices,
         currentTenant,
         setCurrentTenant,
         availableTenants,

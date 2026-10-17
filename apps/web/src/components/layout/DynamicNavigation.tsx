@@ -37,7 +37,6 @@ import {
   ChevronDown,
   LogOut,
   Store,
-  HelpCircle,
   Search,
   User,
   ShieldAlert,
@@ -50,6 +49,10 @@ import {
   Lock,
   Sliders,
   ExternalLink,
+  Mail,
+  Monitor,
+  CheckCircle2,
+  Sparkles,
 } from 'lucide-react';
 import { BusinessType } from '@platform/types';
 import { ZipBillLogo } from '@/components/brand/ZipBillLogo';
@@ -90,6 +93,7 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
     isOnline,
     setIsOnline,
     staff,
+    devices,
     currentTenant,
     setCurrentTenant,
     availableTenants,
@@ -99,7 +103,23 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
-  const [activeProfileTab, setActiveProfileTab] = useState<'PROFILE' | 'DEVICES' | 'SECURITY'>('PROFILE');
+  const [activeProfileTab, setActiveProfileTab] = useState<'PROFILE' | 'DEVICES'>('PROFILE');
+
+  const [clientDevice, setClientDevice] = useState<{
+    name: string;
+    platform: string;
+    osName: string;
+    browserName: string;
+    deviceType: 'desktop' | 'tablet' | 'mobile';
+    displayPlatform: string;
+  }>({
+    name: 'Counter Terminal',
+    platform: 'WEB',
+    osName: 'Desktop',
+    browserName: 'Browser',
+    deviceType: 'desktop',
+    displayPlatform: 'Web Application • Desktop',
+  });
 
   const isPublicPage =
     pathname === '/' ||
@@ -118,10 +138,77 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
     return baseHref === '/' ? '/dashboard' : baseHref;
   };
 
-  // Onboarding awareness (soft check without locking the user out of the dashboard)
+  // Dynamic client hardware & OS detection with database device sync
   React.useEffect(() => {
-    // Kept non-blocking so the dashboard, POS, and all features remain immediately accessible
-  }, []);
+    if (typeof window === 'undefined') return;
+
+    const ua = navigator.userAgent;
+    let osName = 'Windows';
+    if (/Windows/i.test(ua)) osName = 'Windows';
+    else if (/Macintosh|Mac OS X/i.test(ua)) osName = 'macOS';
+    else if (/Android/i.test(ua)) osName = 'Android';
+    else if (/iPhone/i.test(ua)) osName = 'iOS';
+    else if (/iPad/i.test(ua)) osName = 'iPadOS';
+    else if (/Linux/i.test(ua)) osName = 'Linux';
+
+    let browserName = 'Chrome';
+    if (/Edg/i.test(ua)) browserName = 'Edge';
+    else if (/Chrome/i.test(ua)) browserName = 'Chrome';
+    else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browserName = 'Safari';
+    else if (/Firefox/i.test(ua)) browserName = 'Firefox';
+
+    const isTablet =
+      /iPad|Tablet/i.test(ua) ||
+      (window.innerWidth >= 768 && window.innerWidth <= 1024 && ('ontouchstart' in window || navigator.maxTouchPoints > 0));
+    const isMobile = (/Mobi|Android/i.test(ua) && !isTablet) || window.innerWidth < 768;
+
+    let deviceType: 'desktop' | 'tablet' | 'mobile' = 'desktop';
+    let name = 'Counter Terminal';
+    let platform = 'WEB';
+    let displayPlatform = `Web Application • ${osName} / ${browserName}`;
+
+    if (isTablet) {
+      deviceType = 'tablet';
+      name = 'Floor Tablet (Waiter POS)';
+      platform = osName === 'Android' ? 'ANDROID_TABLET' : 'IOS_TABLET';
+      displayPlatform = `${osName} Tablet • ${browserName}`;
+    } else if (isMobile) {
+      deviceType = 'mobile';
+      name = 'Mobile POS Client';
+      platform = osName === 'Android' ? 'ANDROID_PHONE' : 'IOS_PHONE';
+      displayPlatform = `${osName} Mobile • ${browserName}`;
+    } else {
+      deviceType = 'desktop';
+      name = 'Counter Terminal';
+      platform = 'WEB';
+      displayPlatform = `Web Application • ${osName} / ${browserName}`;
+    }
+
+    setClientDevice({
+      name,
+      platform,
+      osName,
+      browserName,
+      deviceType,
+      displayPlatform,
+    });
+
+    // Auto-register or ping this real device in database for the active tenant
+    const activeTenantId = currentTenant?.id || session.tenantId || profile.tenantId;
+    if (activeTenantId && !isPublicPage) {
+      fetch('/api/tenant/devices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId: activeTenantId,
+          userId: session.userId || null,
+          deviceName: name,
+          platform,
+          appVersion: '2.0.0',
+        }),
+      }).catch(() => {});
+    }
+  }, [currentTenant?.id, session.tenantId, profile.tenantId, session.userId, isPublicPage]);
 
   // Load effective modules from context or localStorage
   let effectiveModules = (enabledModules as string[]) || [];
@@ -152,21 +239,21 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
   const hasKitchen = kitchenStaff.length > 0;
   const totalAccountCount = 1 + employeeStaff.length;
 
-  const availablePersonas: Array<{ id: string; label: string; icon: string }> = [
-    { id: 'OWNER', label: 'Owner', icon: '👑' },
+  const availablePersonas: Array<{ id: string; label: string; roleType: string }> = [
+    { id: 'OWNER', label: 'Owner', roleType: 'OWNER' },
   ];
   if (hasWaiters) {
     availablePersonas.push({
       id: 'WAITER',
       label: waiterStaff.length > 1 ? `Waiter (${waiterStaff.length})` : 'Waiter',
-      icon: '🍽️',
+      roleType: 'WAITER',
     });
   }
   if (hasKitchen) {
     availablePersonas.push({
       id: 'KITCHEN',
       label: kitchenStaff.length > 1 ? `Kitchen (${kitchenStaff.length})` : 'Kitchen',
-      icon: '👨‍🍳',
+      roleType: 'KITCHEN',
     });
   }
 
@@ -342,7 +429,7 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
               {sidebarCollapsed ? (
                 <ZipBillLogo size="sm" variant="badge" className="w-10 h-10" />
               ) : (
-                <ZipBillLogo size="md" variant="full" />
+                <ZipBillLogo size="md" variant="full" businessType={businessType || currentTenant?.businessType} />
               )}
             </Link>
 
@@ -434,98 +521,89 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
         <div className="p-3 border-t border-border bg-surface">
           {!sidebarCollapsed ? (
-            <div className="p-3 rounded-xl bg-surfaceMuted border border-borderLight space-y-2.5">
-              <div className="flex items-center space-x-3 overflow-hidden">
-                <div className="relative">
-                  <div className="w-9 h-9 rounded-full bg-primary-soft text-primary font-bold flex items-center justify-center text-xs flex-shrink-0 border border-primary/20">
-                    {session.fullName ? session.fullName.charAt(0) : 'U'}
+            <div className="p-3 rounded-2xl bg-surfaceMuted/70 border border-borderLight space-y-3 shadow-xs">
+              {/* User Header: Avatar, Name, Role Badge, Business Name */}
+              <div className="flex items-center space-x-3">
+                <div className="relative shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent text-primary font-extrabold flex items-center justify-center text-sm border border-primary/25 shadow-xs">
+                    {session.fullName ? session.fullName.charAt(0).toUpperCase() : 'U'}
                   </div>
-                  <span className="w-2.5 h-2.5 bg-success rounded-full absolute bottom-0 right-0 border-2 border-surface" />
+                  <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full absolute -bottom-0.5 -right-0.5 border-2 border-surface shadow-xs" />
                 </div>
-                <div className="truncate flex-1">
-                  <div className="text-[13px] font-semibold text-heading truncate">{session.fullName}</div>
-                  <div className="flex items-center space-x-1.5 mt-0.5">
-                    <span className="inline-block px-1.5 py-0.2 rounded text-[10px] font-semibold uppercase tracking-wider bg-primary-light text-primary">
-                      {session.roleName}
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span className="text-[13px] font-bold text-heading truncate leading-snug">
+                      {session.fullName || 'User'}
                     </span>
-                    <span className="text-[11px] text-muted truncate">
-                      {displayedBusinessName}
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9.5px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20 shrink-0">
+                      {session.roleName || 'Staff'}
                     </span>
                   </div>
+                  <p className="text-[11px] text-muted truncate mt-0.5 font-medium">
+                    {displayedBusinessName}
+                  </p>
                 </div>
               </div>
 
-              {/* Linked Roles: Dynamic persona switcher strictly based on configured staff */}
-              {(session.roleName === 'OWNER' || hasWaiters || hasKitchen) && (
-                <div className="pt-2 border-t border-borderLight">
-                  <div className="text-[10px] font-semibold text-muted uppercase tracking-wider mb-1.5 flex items-center justify-between">
-                    <span>Active Persona</span>
-                    <span className="text-[9px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded font-mono font-medium">
-                      {totalAccountCount === 1 ? '1 Account' : `${totalAccountCount} Accounts`}
+              {/* Dynamic Persona Switcher (Only shown when multiple roles are configured) */}
+              {availablePersonas.length > 1 && (
+                <div className="pt-2 border-t border-borderLight space-y-1.5">
+                  <div className="text-[10px] font-semibold text-muted uppercase tracking-wider flex items-center justify-between">
+                    <span>Switch Role</span>
+                    <span className="text-[9px] text-primary bg-primary/10 px-1.5 py-0.5 rounded font-mono font-medium">
+                      {availablePersonas.length} Roles
                     </span>
                   </div>
-
-                  {availablePersonas.length <= 1 ? (
-                    // Solo Operator: No Waiter or Kitchen configured in the form
-                    <div className="py-1.5 px-2.5 rounded-lg bg-surface border border-borderLight flex items-center justify-between shadow-2xs">
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-heading">
-                        <span>👑</span>
-                        <span>Owner (Solo Operator)</span>
-                      </div>
-                      <span className="text-[9px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
-                        Active
-                      </span>
-                    </div>
-                  ) : (
-                    // Multiple Personas: dynamically render only configured roles
-                    <div
-                      className={`grid ${
-                        availablePersonas.length === 2 ? 'grid-cols-2' : 'grid-cols-3'
-                      } gap-1 bg-surface p-1 rounded-lg border border-borderLight`}
-                    >
-                      {availablePersonas.map((r) => {
-                        const isCurrent = session.roleName === r.id;
-                        return (
-                          <button
-                            key={r.id}
-                            type="button"
-                            onClick={() => handleDevSwitchRole(r.id)}
-                            className={`py-1 px-1 rounded text-[11px] font-medium flex items-center justify-center gap-1 transition ${
-                              isCurrent
-                                ? 'bg-primary text-white font-bold shadow-xs'
-                                : 'text-secondary hover:text-heading hover:bg-surfaceMuted'
-                            }`}
-                            title={`Switch persona: ${r.label}`}
-                          >
-                            <span className="text-[10px]">{r.icon}</span>
-                            <span className="truncate">{r.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+                  <div
+                    className={`grid ${
+                      availablePersonas.length === 2 ? 'grid-cols-2' : 'grid-cols-3'
+                    } gap-1 bg-surface p-1 rounded-xl border border-borderLight`}
+                  >
+                    {availablePersonas.map((r) => {
+                      const isCurrent = session.roleName === r.id;
+                      return (
+                        <button
+                          key={r.id}
+                          type="button"
+                          onClick={() => handleDevSwitchRole(r.id)}
+                          className={`py-1.5 px-2 rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 transition ${
+                            isCurrent
+                              ? 'bg-primary text-white font-bold shadow-xs'
+                              : 'text-secondary hover:text-heading hover:bg-surfaceMuted'
+                          }`}
+                          title={`Switch to ${r.label}`}
+                        >
+                          {r.roleType === 'OWNER' && <ShieldCheck className="w-3.5 h-3.5 shrink-0" />}
+                          {r.roleType === 'WAITER' && <ClipboardList className="w-3.5 h-3.5 shrink-0" />}
+                          {r.roleType === 'KITCHEN' && <ChefHat className="w-3.5 h-3.5 shrink-0" />}
+                          <span className="truncate">{r.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
-              {/* Profile Area Action Buttons */}
-              <div className="pt-2 border-t border-borderLight flex items-center justify-between text-xs">
+              {/* Action Buttons: Clean Profile & Logout */}
+              <div className="pt-2 border-t border-borderLight flex items-center justify-between gap-2">
                 <button
                   type="button"
                   onClick={() => {
                     setActiveProfileTab('PROFILE');
                     setProfileModalOpen(true);
                   }}
-                  className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-secondary hover:text-primary hover:bg-surface transition font-medium"
+                  className="flex-1 flex items-center justify-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-secondary hover:text-heading hover:bg-surface border border-transparent hover:border-borderLight transition"
                   title="Profile Information"
                 >
-                  <User className="w-3.5 h-3.5 stroke-[2]" />
+                  <User className="w-3.5 h-3.5 stroke-[2] text-placeholder" />
                   <span>Profile</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-muted hover:text-danger hover:bg-danger-bg transition font-medium"
+                  className="flex-1 flex items-center justify-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-muted hover:text-danger hover:bg-danger-bg border border-transparent hover:border-danger/20 transition"
                   title="Sign Out"
                 >
                   <LogOut className="w-3.5 h-3.5 stroke-[2]" />
@@ -572,7 +650,9 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
 
             {/* Restaurant Brand Title */}
             <div className="flex items-center space-x-2">
-              <span className="text-base">🍽️</span>
+              <div className="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <Store className="w-3.5 h-3.5 stroke-[2]" />
+              </div>
               <span className="font-semibold text-sm text-heading tracking-tight truncate max-w-[240px]">
                 {currentTenant?.name || profile.businessName || displayedBusinessName}
               </span>
@@ -616,15 +696,6 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
             >
               <Bell className="w-4 h-4 stroke-[1.9]" />
             </button>
-
-            {/* Architecture Overview */}
-            <Link
-              href={getSectionHref('/screens')}
-              className="p-2 rounded-xl text-placeholder hover:text-heading hover:bg-surfaceMuted transition"
-              title="Portal Architecture"
-            >
-              <HelpCircle className="w-4 h-4 stroke-[1.9]" />
-            </Link>
 
             {/* POS Fast CTA (Only shown if user has POS permission) */}
             {checkPermission(effectivePermissions, 'pos.view') && (
@@ -813,96 +884,146 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
           (Profile, My Devices, Security)
           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {profileModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-surface rounded-2xl border border-border max-w-md w-full shadow-2xl overflow-hidden">
-            <div className="p-5 border-b border-borderLight flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-full bg-primary-soft text-primary font-bold flex items-center justify-center text-sm">
-                  {session.fullName ? session.fullName.charAt(0) : 'U'}
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-150">
+          <div className="bg-surface rounded-2xl border border-border max-w-lg w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="p-5 sm:p-6 pb-4 border-b border-borderLight bg-surface">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3.5">
+                  <div className="relative shrink-0">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 text-primary font-black text-lg flex items-center justify-center border border-primary/25 shadow-xs">
+                      {session.fullName ? session.fullName.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                    <span className="w-3 h-3 bg-emerald-500 rounded-full ring-2 ring-surface absolute -bottom-0.5 -right-0.5 shadow-xs" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-heading text-base leading-tight truncate">
+                        {session.fullName || 'User Profile'}
+                      </h3>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20 shrink-0">
+                        {session.roleName || 'Owner'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted truncate mt-0.5 font-medium flex items-center gap-1.5">
+                      <Mail className="w-3 h-3 text-placeholder shrink-0" />
+                      <span className="truncate">{session.email || 'user@restaurant.com'}</span>
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-heading text-[15px]">{session.fullName}</h3>
-                  <span className="text-xs text-primary font-semibold uppercase">{session.roleName}</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setProfileModalOpen(false)}
-                className="p-1.5 rounded-lg text-placeholder hover:text-heading"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            {/* Profile Tabs */}
-            <div className="flex border-b border-borderLight bg-surfaceMuted px-5">
-              {(['PROFILE', 'DEVICES', 'SECURITY'] as const).map((tab) => (
                 <button
-                  key={tab}
                   type="button"
-                  onClick={() => setActiveProfileTab(tab)}
-                  className={`py-2.5 px-3 text-xs font-semibold border-b-2 transition ${
-                    activeProfileTab === tab
-                      ? 'border-primary text-primary'
-                      : 'border-transparent text-secondary hover:text-heading'
-                  }`}
+                  onClick={() => setProfileModalOpen(false)}
+                  className="p-2 rounded-xl text-placeholder hover:text-heading hover:bg-surfaceMuted transition border border-transparent hover:border-borderLight"
+                  title="Close modal"
                 >
-                  {tab === 'PROFILE' && 'Profile'}
-                  {tab === 'DEVICES' && 'My Devices'}
-                  {tab === 'SECURITY' && 'Security'}
+                  <X className="w-4 h-4 stroke-[2]" />
                 </button>
-              ))}
+              </div>
+
+              {/* Segmented Control Tabs */}
+              <div className="grid grid-cols-2 gap-1 bg-surfaceMuted p-1 rounded-xl border border-borderLight mt-4">
+                {(['PROFILE', 'DEVICES'] as const).map((tab) => {
+                  const isActive = activeProfileTab === tab;
+                  return (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setActiveProfileTab(tab)}
+                      className={`py-2 px-3 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition ${
+                        isActive
+                          ? 'bg-surface text-heading font-bold shadow-xs border border-borderLight/80'
+                          : 'text-secondary hover:text-heading hover:bg-surface/50'
+                      }`}
+                    >
+                      {tab === 'PROFILE' && <User className="w-3.5 h-3.5 stroke-[2]" />}
+                      {tab === 'DEVICES' && <Monitor className="w-3.5 h-3.5 stroke-[2]" />}
+                      <span>
+                        {tab === 'PROFILE' && 'Profile'}
+                        {tab === 'DEVICES' && 'My Devices'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="p-5 space-y-4 text-xs">
+            {/* Modal Body */}
+            <div className="p-5 sm:p-6 space-y-4 text-xs max-h-[60vh] overflow-y-auto">
               {activeProfileTab === 'PROFILE' && (
                 <div className="space-y-4">
-                  <div className="space-y-2.5">
-                    <div>
-                      <span className="text-muted block mb-0.5">Email Address</span>
-                      <span className="font-semibold text-heading">{session.email || 'user@restaurant.com'}</span>
+                  {/* Account Overview Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div className="p-3 rounded-xl bg-surfaceMuted/60 border border-borderLight">
+                      <div className="flex items-center space-x-2 text-placeholder mb-1">
+                        <Store className="w-3.5 h-3.5 text-primary" />
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+                          Active Restaurant
+                        </span>
+                      </div>
+                      <div className="font-bold text-heading text-[13px] truncate">
+                        {displayedBusinessName}
+                      </div>
+                      <div className="text-[10px] text-secondary capitalize font-medium mt-0.5">
+                        {businessType.toLowerCase().replace('_', ' ')} Outlet
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-muted block mb-0.5">Restaurant</span>
-                      <span className="font-semibold text-heading">{displayedBusinessName}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted block mb-0.5">Active Role Persona</span>
-                      <span className="inline-flex px-2 py-0.5 rounded font-semibold bg-primary-light text-primary">
-                        {session.roleName}
-                      </span>
+
+                    <div className="p-3 rounded-xl bg-surfaceMuted/60 border border-borderLight">
+                      <div className="flex items-center space-x-2 text-placeholder mb-1">
+                        <ShieldCheck className="w-3.5 h-3.5 text-primary" />
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+                          Access Clearance
+                        </span>
+                      </div>
+                      <div className="font-bold text-heading text-[13px] truncate">
+                        {session.roleName === 'OWNER' ? 'Primary Owner' : session.roleName}
+                      </div>
+                      <div className="text-[10px] text-secondary font-medium mt-0.5">
+                        {session.roleName === 'OWNER' ? 'Full System Administrator' : 'Staff Access'}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t border-borderLight">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold text-heading text-[12px]">
-                        Linked Restaurant Accounts ({totalAccountCount})
+                  {/* Team / Linked Accounts Section */}
+                  <div className="pt-2 border-t border-borderLight space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-heading text-xs flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5 text-muted" />
+                        <span>Connected Profiles & Staff ({totalAccountCount})</span>
                       </span>
-                      <span className="text-[10px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded font-mono">
+                      <span className="text-[10px] font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">
                         1 Restaurant
                       </span>
                     </div>
 
-                    <div className="space-y-1.5">
-                      {/* Primary Owner Account */}
-                      <div className={`p-2.5 rounded-xl border flex items-center justify-between transition ${
-                        session.roleName === 'OWNER'
-                          ? 'bg-primary-soft/30 border-primary/40'
-                          : 'bg-surfaceMuted border-borderLight hover:border-border'
-                      }`}>
-                        <div className="flex items-center space-x-2.5">
-                          <span className="text-base">👑</span>
+                    <div className="space-y-2">
+                      {/* Primary Owner Account Card */}
+                      <div
+                        className={`p-3 rounded-xl border flex items-center justify-between transition ${
+                          session.roleName === 'OWNER'
+                            ? 'bg-primary-soft/40 border-primary/30 shadow-xs'
+                            : 'bg-surfaceMuted/60 border-borderLight hover:border-border'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0 border border-primary/20">
+                            <ShieldCheck className="w-5 h-5 text-primary stroke-[2]" />
+                          </div>
                           <div>
-                            <div className="font-semibold text-heading text-[12px] flex items-center gap-1.5">
+                            <div className="font-bold text-heading text-xs flex items-center gap-1.5">
                               <span>{session.fullName || 'Restaurant Owner'}</span>
-                              <span className="text-[9px] bg-primary text-white px-1.5 py-0.2 rounded font-bold uppercase">
-                                {session.roleName === 'OWNER' ? 'Active' : 'Owner'}
+                              <span className="text-[9px] bg-primary text-white px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider">
+                                {session.roleName === 'OWNER' ? 'Active Session' : 'Owner'}
                               </span>
                             </div>
-                            <div className="text-[10px] text-muted">Primary Administrator • Full Management & Reports</div>
+                            <div className="text-[11px] text-muted font-medium mt-0.5">
+                              Primary Administrator • Full Management & Analytics
+                            </div>
                           </div>
                         </div>
+
                         {session.roleName !== 'OWNER' && (
                           <button
                             type="button"
@@ -910,40 +1031,52 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
                               handleDevSwitchRole('OWNER');
                               setProfileModalOpen(false);
                             }}
-                            className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-surface border border-borderLight text-primary hover:bg-primary hover:text-white transition"
+                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-surface border border-borderLight text-primary hover:bg-primary hover:text-white transition shadow-xs"
                           >
                             Switch
                           </button>
                         )}
                       </div>
 
-                      {/* Configured Staff Accounts */}
+                      {/* Configured Staff Accounts (if any) */}
                       {employeeStaff.map((emp: any) => {
                         const isCurrent = session.roleName === emp.roleType;
-                        const roleIcon = emp.roleType === 'KITCHEN' ? '👨‍🍳' : '🍽️';
                         const roleLabel = emp.roleType === 'KITCHEN' ? 'Kitchen Chef' : 'Floor Waiter';
-                        const roleDesc = emp.roleType === 'KITCHEN' ? 'Live KDS Ticket Preparation' : 'Table POS, Orders & Guest Billing';
+                        const roleDesc =
+                          emp.roleType === 'KITCHEN'
+                            ? 'Live KDS Ticket Preparation'
+                            : 'Table POS, Orders & Guest Billing';
 
                         return (
                           <div
                             key={emp.id || emp.email}
-                            className={`p-2.5 rounded-xl border flex items-center justify-between transition ${
+                            className={`p-3 rounded-xl border flex items-center justify-between transition ${
                               isCurrent
-                                ? 'bg-primary-soft/30 border-primary/40'
-                                : 'bg-surfaceMuted border-borderLight hover:border-border'
+                                ? 'bg-primary-soft/40 border-primary/30 shadow-xs'
+                                : 'bg-surfaceMuted/60 border-borderLight hover:border-border'
                             }`}
                           >
-                            <div className="flex items-center space-x-2.5">
-                              <span className="text-base">{roleIcon}</span>
+                            <div className="flex items-center space-x-3">
+                              <div className="w-9 h-9 rounded-xl bg-surfaceMuted flex items-center justify-center shrink-0 border border-borderLight">
+                                {emp.roleType === 'KITCHEN' ? (
+                                  <ChefHat className="w-4 h-4 text-amber-600" />
+                                ) : (
+                                  <ClipboardList className="w-4 h-4 text-blue-600" />
+                                )}
+                              </div>
                               <div>
-                                <div className="font-semibold text-heading text-[12px] flex items-center gap-1.5">
+                                <div className="font-bold text-heading text-xs flex items-center gap-1.5">
                                   <span>{emp.fullName || emp.name}</span>
-                                  <span className="text-[9px] text-muted font-normal">({roleLabel})</span>
+                                  <span className="text-[10px] text-muted font-normal">({roleLabel})</span>
                                   {isCurrent && (
-                                    <span className="text-[9px] bg-primary text-white px-1.5 py-0.2 rounded font-bold uppercase">Active</span>
+                                    <span className="text-[9px] bg-primary text-white px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider">
+                                      Active
+                                    </span>
                                   )}
                                 </div>
-                                <div className="text-[10px] text-muted">{emp.phone || emp.email || roleDesc}</div>
+                                <div className="text-[11px] text-muted font-medium mt-0.5">
+                                  {emp.phone || emp.email || roleDesc}
+                                </div>
                               </div>
                             </div>
                             {!isCurrent && (
@@ -953,7 +1086,7 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
                                   handleDevSwitchRole(emp.roleType);
                                   setProfileModalOpen(false);
                                 }}
-                                className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-surface border border-borderLight text-primary hover:bg-primary hover:text-white transition"
+                                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-surface border border-borderLight text-primary hover:bg-primary hover:text-white transition shadow-xs"
                               >
                                 Switch
                               </button>
@@ -962,78 +1095,132 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
                         );
                       })}
 
-                      {/* Solo Owner Message when no employees configured */}
-                      {employeeStaff.length === 0 && (
-                        <div className="p-3 bg-surface rounded-xl border border-dashed border-borderLight text-center">
-                          <p className="text-[11px] font-medium text-heading">Solo Restaurant Operation</p>
-                          <p className="text-[10px] text-muted mt-0.5">
-                            No waiter or kitchen employee accounts were added during onboarding. The owner manages all floor & counter operations directly.
-                          </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeProfileTab === 'DEVICES' && (() => {
+                const otherDevices = (devices || []).filter(
+                  (d: any) => d.deviceName !== clientDevice.name && d.deviceName !== 'Counter Terminal'
+                );
+                const totalCount = 1 + otherDevices.length;
+
+                return (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between pb-1">
+                      <span className="text-xs font-bold text-heading flex items-center gap-1.5">
+                        <Monitor className="w-3.5 h-3.5 text-muted" />
+                        <span>Authorized POS Hardware ({totalCount})</span>
+                      </span>
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                        Live Connected
+                      </span>
+                    </div>
+
+                    {/* Dynamic Primary Device (Detected from current browser/system) */}
+                    <div className="p-3.5 bg-primary/5 hover:bg-primary/10 rounded-xl border border-primary/25 flex items-center justify-between transition shadow-xs">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
+                          {clientDevice.deviceType === 'mobile' ? (
+                            <Smartphone className="w-5 h-5" />
+                          ) : clientDevice.deviceType === 'tablet' ? (
+                            <Smartphone className="w-5 h-5" />
+                          ) : (
+                            <Monitor className="w-5 h-5" />
+                          )}
                         </div>
-                      )}
+                        <div>
+                          <div className="font-bold text-heading text-xs flex items-center gap-1.5">
+                            <span>{clientDevice.name}</span>
+                            <span className="text-[9.5px] bg-primary text-white px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                              This Device
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-muted font-medium mt-0.5">
+                            Platform: {clientDevice.displayPlatform}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>AUTHORIZED</span>
+                      </span>
                     </div>
-                  </div>
-                </div>
-              )}
 
-              {activeProfileTab === 'DEVICES' && (
-                <div className="space-y-2.5">
-                  <div className="p-3 bg-surfaceMuted rounded-xl border border-borderLight flex items-center justify-between">
-                    <div>
-                      <div className="font-semibold text-heading">Counter Terminal (This Device)</div>
-                      <div className="text-[11px] text-muted">Platform: Web App / Windows</div>
-                    </div>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-success-bg text-success">
-                      AUTHORIZED
-                    </span>
-                  </div>
-                  <div className="p-3 bg-surfaceMuted rounded-xl border border-borderLight flex items-center justify-between">
-                    <div>
-                      <div className="font-semibold text-heading">Floor Tablet (Waiter POS)</div>
-                      <div className="text-[11px] text-muted">Platform: Android 14</div>
-                    </div>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-success-bg text-success">
-                      ACTIVE
-                    </span>
-                  </div>
-                </div>
-              )}
+                    {/* Other Database Registered Devices */}
+                    {otherDevices.map((d: any) => {
+                      const isMobile =
+                        d.platform?.includes('PHONE') ||
+                        d.platform?.includes('TABLET') ||
+                        d.deviceName?.toLowerCase().includes('tablet') ||
+                        d.deviceName?.toLowerCase().includes('phone');
 
-              {activeProfileTab === 'SECURITY' && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-semibold text-heading">Session Authenticated</div>
-                      <div className="text-[11px] text-muted">Backend verified JWT session token</div>
+                      return (
+                        <div
+                          key={d.id}
+                          className="p-3.5 bg-surfaceMuted/60 hover:bg-surfaceMuted rounded-xl border border-borderLight flex items-center justify-between transition"
+                        >
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 rounded-xl bg-violet-500/10 text-violet-600 flex items-center justify-center shrink-0 border border-violet-500/20">
+                              {isMobile ? <Smartphone className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
+                            </div>
+                            <div>
+                              <div className="font-bold text-heading text-xs">{d.deviceName}</div>
+                              <div className="text-[11px] text-muted font-medium mt-0.5">
+                                Platform: {d.platform ? d.platform.replace('_', ' ') : 'POS Client'} • v{d.appVersion || '2.0.0'}
+                              </div>
+                            </div>
+                          </div>
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 shrink-0">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            <span>ACTIVE</span>
+                          </span>
+                        </div>
+                      );
+                    })}
+
+                    {otherDevices.length === 0 && (
+                      <div className="p-3 bg-surface rounded-xl border border-dashed border-borderLight text-center text-muted">
+                        <p className="text-[11px] font-medium text-heading">Single Terminal Connected</p>
+                        <p className="text-[10px] mt-0.5">
+                          Additional waiter tablets, cashier counters, or kitchen displays will appear here automatically as soon as staff members sign in on other hardware.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Device Note */}
+                    <div className="p-3 rounded-xl bg-surfaceMuted/40 border border-borderLight flex items-center space-x-2.5 text-[11px] text-secondary">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Hardware pairing is secured with HMAC device tokens and local LAN sync.</span>
                     </div>
-                    <span className="text-success font-semibold">Active</span>
                   </div>
-                  <div className="pt-2 border-t border-borderLight">
-                    <span className="text-muted block mb-1">Effective Level 1/2 Permissions</span>
-                    <div className="max-h-24 overflow-y-auto p-2 bg-surfaceMuted rounded-lg font-mono text-[10px] text-heading space-y-0.5">
-                      {effectivePermissions.map((p, idx) => (
-                        <div key={idx}>• {p}</div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
+
+
             </div>
 
-            <div className="p-4 border-t border-borderLight bg-surfaceMuted flex items-center justify-between">
-              <Link
-                href="/login"
-                className="text-danger hover:underline text-xs font-semibold flex items-center space-x-1"
+            {/* Modal Footer */}
+            <div className="p-4 sm:p-5 border-t border-borderLight bg-surfaceMuted/50 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setProfileModalOpen(false);
+                  handleLogout();
+                }}
+                className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-danger hover:bg-danger-bg border border-transparent hover:border-danger/20 transition"
               >
-                <LogOut className="w-3.5 h-3.5" />
+                <LogOut className="w-3.5 h-3.5 stroke-[2]" />
                 <span>Sign Out</span>
-              </Link>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setProfileModalOpen(false)}
-                className="btn-primary text-xs py-1.5 px-4"
+                className="btn-primary text-xs py-2 px-5 rounded-xl font-bold shadow-xs"
               >
-                Close
+                Done
               </button>
             </div>
           </div>

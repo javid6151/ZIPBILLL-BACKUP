@@ -5,14 +5,74 @@ interface ZipBillLogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
   variant?: 'full' | 'compact' | 'badge';
   invert?: boolean;
+  businessType?: string;
 }
+
+const BUSINESS_TYPE_DISPLAY: Record<string, string> = {
+  RESTAURANT: 'Restaurant',
+  CAFE: 'Cafe',
+  BAKERY: 'Bakery',
+  FAST_FOOD: 'Fast Food',
+  CLOUD_KITCHEN: 'Cloud Kitchen',
+  FOOD_COURT: 'Food Court',
+  BAR: 'Bar & Lounge',
+  HOTEL_RESTAURANT: 'Hotel',
+  HOTEL: 'Hotel',
+};
 
 export function ZipBillLogo({
   className = '',
   size = 'md',
   variant = 'full',
   invert = false,
+  businessType,
 }: ZipBillLogoProps) {
+  const [activeType, setActiveType] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (businessType) {
+      setActiveType(businessType);
+      return;
+    }
+    if (typeof window !== 'undefined') {
+      const savedBType = localStorage.getItem('saas_active_business_type');
+      if (savedBType) {
+        setActiveType(savedBType);
+        return;
+      }
+      try {
+        const pendingReg = localStorage.getItem('saas_pending_registration');
+        if (pendingReg) {
+          const parsed = JSON.parse(pendingReg);
+          if (parsed.businessType) {
+            setActiveType(parsed.businessType);
+            return;
+          }
+        }
+        const profileStr = localStorage.getItem('saas_active_profile');
+        if (profileStr) {
+          const p = JSON.parse(profileStr);
+          if (p.businessType) {
+            setActiveType(p.businessType);
+            return;
+          }
+        }
+        const tenantStr = localStorage.getItem('saas_active_tenant');
+        if (tenantStr) {
+          const t = JSON.parse(tenantStr);
+          if (t.businessType) {
+            setActiveType(t.businessType);
+            return;
+          }
+        }
+      } catch (e) {}
+    }
+  }, [businessType]);
+
+  const resolvedType = businessType || activeType;
+  const subtitleText = resolvedType
+    ? (BUSINESS_TYPE_DISPLAY[resolvedType.toUpperCase()] || resolvedType.replace(/_/g, ' '))
+    : 'Restaurant';
   const sizeMap = {
     sm: {
       fontSize: 'text-lg',
@@ -211,8 +271,7 @@ export function ZipBillLogo({
           } pl-0.5`}
           style={{ letterSpacing: '0.24em' }}
         >
-          Restaurant <span className="text-[#EA580C] font-normal">|</span> Cafe{' '}
-          <span className="text-[#EA580C] font-normal">|</span> Hotel
+          {subtitleText}
         </div>
       )}
     </div>
