@@ -332,6 +332,7 @@ export default function SuperAdminPortalPage() {
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [adminUser, setAdminUser] = useState<{ fullName?: string; email?: string } | null>(null);
 
   const showToast = (msg: string) => {
     setNotification(msg);
@@ -371,9 +372,17 @@ export default function SuperAdminPortalPage() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const sess = localStorage.getItem('saas_admin_session');
-      if (!sess) {
-        window.location.href = '/admin/login';
-        return;
+      if (sess) {
+        try {
+          const parsed = JSON.parse(sess);
+          setAdminUser(parsed);
+        } catch (e) {}
+      } else {
+        const cookieMatch = document.cookie.match(/saas_admin_session=([^;]+)/);
+        if (!cookieMatch) {
+          window.location.href = '/admin/login';
+          return;
+        }
       }
     }
     async function loadData() {
@@ -619,12 +628,12 @@ export default function SuperAdminPortalPage() {
           <div className="p-2.5 rounded-xl bg-surface border border-border space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2.5 truncate">
-                <div className="w-8 h-8 rounded-full bg-heading text-white font-bold flex items-center justify-center text-xs">
-                  SA
+                <div className="w-8 h-8 rounded-full bg-heading text-white font-bold flex items-center justify-center text-xs shrink-0">
+                  {adminUser?.fullName ? adminUser.fullName.substring(0, 2).toUpperCase() : 'SA'}
                 </div>
                 <div className="truncate">
-                  <div className="text-xs font-semibold text-heading truncate">Vikram Malhotra</div>
-                  <div className="text-[10px] text-muted uppercase font-bold">{adminRole}</div>
+                  <div className="text-xs font-semibold text-heading truncate">{adminUser?.fullName || 'Tarun (Super Admin)'}</div>
+                  <div className="text-[10px] text-muted truncate">{adminUser?.email || 'tarunuttupulusu@gmail.com'}</div>
                 </div>
               </div>
 
@@ -633,6 +642,7 @@ export default function SuperAdminPortalPage() {
                 onClick={() => {
                   if (typeof window !== 'undefined') {
                     localStorage.removeItem('saas_admin_session');
+                    document.cookie = 'saas_admin_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
                   }
                   window.location.href = '/admin/login';
                 }}

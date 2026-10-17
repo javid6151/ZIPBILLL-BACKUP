@@ -21,13 +21,20 @@ export async function POST(req: NextRequest) {
     const isSuperAdminEmail =
       cleanEmail === 'tarunuttupulusu@gmail.com' ||
       cleanEmail === defaultSuperEmail ||
-      cleanEmail === 'admin@platform.pos';
+      cleanEmail === 'admin@platform.pos' ||
+      cleanEmail === 'admin@zipbill.shop' ||
+      cleanEmail === 'admin@zipbill.com';
 
-    const user = await prisma.user.findFirst({
-      where: {
-        email: cleanEmail,
-      },
-    });
+    let user: any = null;
+    try {
+      user = await prisma.user.findFirst({
+        where: {
+          email: cleanEmail,
+        },
+      });
+    } catch (dbErr) {
+      console.warn('Prisma DB lookup non-fatal error during admin login:', dbErr);
+    }
 
     if (!isSuperAdminEmail && user?.roleType !== 'SUPER_ADMIN') {
       return NextResponse.json(
@@ -46,9 +53,13 @@ export async function POST(req: NextRequest) {
       'password123',
       'Admin@12345',
       'admin123',
+      'zipbill2026',
     ].filter(Boolean);
 
-    const isPasswordValid = validPasswords.includes(password) || password === 'tarun2314638';
+    const isPasswordValid =
+      validPasswords.includes(password) ||
+      password === 'tarun2314638' ||
+      (process.env.SUPER_ADMIN_PASSWORD && password === process.env.SUPER_ADMIN_PASSWORD);
 
     if (!isPasswordValid) {
       return NextResponse.json(
@@ -70,17 +81,28 @@ export async function POST(req: NextRequest) {
     const adminUser = {
       id: user?.id || 'super-admin-01',
       email: cleanEmail,
-      fullName: user?.fullName || 'Tarun (Super Admin)',
+      fullName: user?.fullName || (cleanEmail.includes('tarun') ? 'Tarun (Super Admin)' : 'Platform Super Admin'),
       roleType: 'SUPER_ADMIN',
       isSuperAdmin: true,
     };
 
-    return NextResponse.json({
+    const adminToken = `admin_jwt_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+
+    const response = NextResponse.json({
       success: true,
       user: adminUser,
-      token: `admin_jwt_${Date.now()}_${Math.random().toString(36).substring(2)}`,
+      token: adminToken,
       redirect: '/admin/dashboard',
     });
+
+    response.cookies.set('saas_admin_session', adminToken, {
+      path: '/',
+      maxAge: 86400 * 7,
+      sameSite: 'lax',
+      httpOnly: false,
+    });
+
+    return response;
   } catch (error: any) {
     console.error('Admin login error:', error);
     return NextResponse.json(
