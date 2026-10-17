@@ -107,6 +107,7 @@ function OnboardingWizardContent() {
   const [step, setStep] = useState<number>(1);
   const [loadingInitial, setLoadingInitial] = useState<boolean>(true);
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState<boolean>(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -444,6 +445,7 @@ function OnboardingWizardContent() {
       setStep(1);
       return;
     }
+    setSubmitError(null);
     setSubmitting(true);
     try {
       const targetTenant = tenantId || profile.tenantId;
@@ -553,7 +555,9 @@ function OnboardingWizardContent() {
       }
     } catch (err: any) {
       console.error('Onboarding final submit error:', err);
-      alert(err.message || 'Failed to save configuration to database.');
+      const msg = err.message || 'Failed to save configuration to database.';
+      setSubmitError(msg);
+      alert(msg);
     } finally {
       setSubmitting(false);
     }
@@ -1622,6 +1626,20 @@ function OnboardingWizardContent() {
                   </span>
                 </div>
               </div>
+
+              {submitError && (
+                <div className="p-4 bg-rose-50 border border-rose-200/90 rounded-2xl text-rose-800 text-xs flex items-start space-x-3 shadow-sm">
+                  <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <span className="font-bold text-rose-900 text-xs block">
+                      Registration Submission Error
+                    </span>
+                    <span className="text-[11px] leading-relaxed block text-rose-700">
+                      {submitError}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
