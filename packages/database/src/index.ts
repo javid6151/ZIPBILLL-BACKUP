@@ -11,8 +11,8 @@ export const prisma =
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
   });
 
-if (process.env.NODE_ENV !== 'production') {
-  global.globalPrisma = prisma;
-}
+// Always cache client on global across all environments (including production serverless lambdas)
+// to avoid creating new connection pools on warm invocations.
+global.globalPrisma = prisma;
 
 export * from '@prisma/client';
