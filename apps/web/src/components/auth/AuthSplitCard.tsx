@@ -20,6 +20,8 @@ import {
   Zap,
   ShieldCheck,
   Check,
+  LayoutGrid,
+  ChefHat,
 } from 'lucide-react';
 import { BusinessType } from '@platform/types';
 import { ROLE_DEFAULT_PERMISSIONS } from '@/lib/permission-engine';
@@ -504,7 +506,7 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
           {/* Top Bar: Brand Logo & Segmented Mode Switch */}
           <div className="flex items-center justify-between pb-2 border-b border-[#F0EEEB]">
             <Link href="/" className="hover:opacity-90 transition">
-              <ZipBillLogo size="sm" variant="full" />
+              <ZipBillLogo size="sm" variant="full" businessType={mode === 'register' ? bType : undefined} />
             </Link>
 
             {/* Segmented Mode Switch */}
@@ -695,7 +697,8 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
                     {/* CapsLock Warning */}
                     {capsLockActive && (
                       <div className="text-[11px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md flex items-center space-x-1 mt-1 border border-amber-200">
-                        <span>⚠️ Caps Lock is turned ON</span>
+                        <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <span>Caps Lock is turned ON</span>
                       </div>
                     )}
                   </div>

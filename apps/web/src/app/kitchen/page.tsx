@@ -205,7 +205,7 @@ export default function KitchenKdsPage() {
                       {ticket.status === 'ACCEPTED' && 'Start Preparation'}
                       {ticket.status === 'PREPARING' && 'Mark Ready'}
                       {ticket.status === 'READY' && 'Serve to Table'}
-                      {ticket.status === 'SERVED' && 'Order Served ✓'}
+                      {ticket.status === 'SERVED' && 'Order Served'}
                     </span>
                   </button>
                 </div>

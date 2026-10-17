@@ -8,6 +8,8 @@ import {
   Calculator,
   LayoutGrid,
   ClipboardList,
+  Utensils,
+  Coffee,
   Package,
   Users,
   BarChart3,
@@ -268,7 +270,9 @@ function renderScreenContent(currentScreen: ScreenDefinition, onNav?: (id: strin
         {/* Timeline */}
         <div className="p-4 rounded-xl bg-surfaceElevated border border-border text-left space-y-3">
           <div className="flex items-center space-x-3">
-            <span className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold">✓</span>
+            <span className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center">
+              <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+            </span>
             <span className="text-xs font-semibold text-white">Submitted</span>
           </div>
           <div className="flex items-center space-x-3">
@@ -477,22 +481,24 @@ function renderScreenContent(currentScreen: ScreenDefinition, onNav?: (id: strin
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {[
-            { name: 'Restaurant', icon: '🍽️', selected: true },
-            { name: 'Cafe', icon: '☕' },
-            { name: 'Bakery', icon: '🥐' },
-            { name: 'Fast Food', icon: '🍔' },
-            { name: 'Cloud Kitchen', icon: '🛵' },
-            { name: 'Bar', icon: '🍸' },
+            { name: 'Restaurant', icon: Utensils, selected: true },
+            { name: 'Cafe', icon: Coffee },
+            { name: 'Bakery', icon: Store },
+            { name: 'Fast Food', icon: Calculator },
+            { name: 'Cloud Kitchen', icon: ChefHat },
+            { name: 'Bar', icon: LayoutGrid },
           ].map((item, idx) => (
             <div
               key={idx}
-              className={`p-4 rounded-xl border text-center cursor-pointer transition ${
+              className={`p-4 rounded-xl border text-center cursor-pointer transition flex flex-col items-center justify-center ${
                 item.selected
                   ? 'bg-primary/20 border-primary text-white shadow-lg shadow-primary/20'
                   : 'bg-surfaceElevated border-border text-slate-300 hover:border-slate-500'
               }`}
             >
-              <div className="text-3xl mb-2">{item.icon}</div>
+              <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-2 border border-primary/20">
+                <item.icon className="w-5 h-5 stroke-[2]" />
+              </div>
               <span className="font-semibold text-xs">{item.name}</span>
             </div>
           ))}
@@ -561,7 +567,9 @@ function renderScreenContent(currentScreen: ScreenDefinition, onNav?: (id: strin
           {['POS', 'Tables', 'Kitchen / KOT', 'Inventory', 'Customers', 'Reports'].map((m, i) => (
             <div key={i} className="p-3 rounded-xl bg-surfaceElevated border border-primary/60 flex items-center justify-between">
               <span className="font-semibold text-xs text-white">{m}</span>
-              <span className="w-5 h-5 rounded bg-primary text-white text-xs flex items-center justify-center font-bold">✓</span>
+              <span className="w-5 h-5 rounded bg-primary text-white text-xs flex items-center justify-center">
+                <Check className="w-3 h-3 stroke-[2.5]" />
+              </span>
             </div>
           ))}
         </div>
@@ -842,16 +850,16 @@ function renderScreenContent(currentScreen: ScreenDefinition, onNav?: (id: strin
         <h3 className="text-xl font-bold text-white">Review Your Setup</h3>
         <div className="p-4 rounded-xl bg-surfaceElevated border border-border text-left text-xs space-y-2">
           <div className="flex items-center space-x-2 text-emerald-400">
-            <span>✓</span> <span>Business Information Configured</span>
+            <Check className="w-3.5 h-3.5 stroke-[2.5]" /> <span>Business Information Configured</span>
           </div>
           <div className="flex items-center space-x-2 text-emerald-400">
-            <span>✓</span> <span>Enabled Modules (POS, Tables, KDS, Reports)</span>
+            <Check className="w-3.5 h-3.5 stroke-[2.5]" /> <span>Enabled Modules (POS, Tables, KDS, Reports)</span>
           </div>
           <div className="flex items-center space-x-2 text-emerald-400">
-            <span>✓</span> <span>Tables Created (20 Tables Across 3 Sections)</span>
+            <Check className="w-3.5 h-3.5 stroke-[2.5]" /> <span>Tables Created (20 Tables Across 3 Sections)</span>
           </div>
           <div className="flex items-center space-x-2 text-emerald-400">
-            <span>✓</span> <span>Menu Catalog Ready (42 Items Loaded)</span>
+            <Check className="w-3.5 h-3.5 stroke-[2.5]" /> <span>Menu Catalog Ready (42 Items Loaded)</span>
           </div>
         </div>
         <button
@@ -1198,7 +1206,12 @@ function renderScreenContent(currentScreen: ScreenDefinition, onNav?: (id: strin
             <div key={i} className={`p-3 rounded-xl bg-surfaceElevated border ${item.alert ? 'border-rose-500/50 bg-rose-500/10' : 'border-border'}`}>
               <div className="font-bold text-white">{item.name}</div>
               <div className="text-sm font-mono mt-1 text-slate-200">{item.stock}</div>
-              {item.alert && <div className="text-[10px] text-rose-400 font-bold mt-1">⚠ Low Stock</div>}
+              {item.alert && (
+                <div className="text-[10px] text-rose-400 font-bold mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3 stroke-[2]" />
+                  <span>Low Stock</span>
+                </div>
+              )}
             </div>
           ))}
         </div>

@@ -37,6 +37,8 @@ import {
   Database,
   Smartphone,
   Key,
+  ShieldCheck,
+  ChefHat,
 } from 'lucide-react';
 
 // ============================================================
@@ -675,12 +677,12 @@ export default function SuperAdminPortalPage() {
                 onChange={(e) => setAdminRole(e.target.value as AdminRole)}
                 className="bg-surface border border-border rounded px-1.5 py-0.5 text-[11px] font-semibold text-heading cursor-pointer"
               >
-                <option value="SUPER_ADMIN">👑 Super Admin</option>
-                <option value="PLATFORM_ADMIN">💼 Platform Admin</option>
-                <option value="SUPPORT_ADMIN">🎧 Support Admin</option>
-                <option value="FINANCE_ADMIN">💵 Finance Admin</option>
-                <option value="SECURITY_ADMIN">🛡️ Security Admin</option>
-                <option value="READ_ONLY_ADMIN">👁️ Read-Only</option>
+                <option value="SUPER_ADMIN">Super Admin</option>
+                <option value="PLATFORM_ADMIN">Platform Admin</option>
+                <option value="SUPPORT_ADMIN">Support Admin</option>
+                <option value="FINANCE_ADMIN">Finance Admin</option>
+                <option value="SECURITY_ADMIN">Security Admin</option>
+                <option value="READ_ONLY_ADMIN">Read-Only</option>
               </select>
             </div>
           </div>
@@ -776,7 +778,9 @@ export default function SuperAdminPortalPage() {
           {notification && (
             <div className="p-3 bg-heading text-white rounded-xl text-xs font-semibold flex items-center justify-between shadow-lg">
               <span>{notification}</span>
-              <button onClick={() => setNotification(null)}>✕</button>
+              <button onClick={() => setNotification(null)} className="p-1 hover:bg-white/10 rounded transition">
+                <X className="w-4 h-4" />
+              </button>
             </div>
           )}
 
@@ -1463,7 +1467,7 @@ export default function SuperAdminPortalPage() {
                       key={idx}
                       className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-surfaceMuted border border-border font-medium text-heading text-xs"
                     >
-                      <span className="text-emerald-500 font-bold">✓</span>
+                      <Check className="w-3.5 h-3.5 text-emerald-500 stroke-[2.5]" />
                       <span>{srv}</span>
                     </span>
                   ))}
@@ -1515,7 +1519,9 @@ export default function SuperAdminPortalPage() {
                     {/* Primary Owner Account */}
                     <div className="p-2.5 rounded-lg bg-surfaceMuted border border-borderLight flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span>👑</span>
+                        <div className="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+                          <ShieldCheck className="w-3.5 h-3.5 stroke-[2]" />
+                        </div>
                         <div>
                           <span className="font-semibold text-heading text-xs block">{selectedRegistration.ownerName}</span>
                           <span className="text-[10px] text-muted">Primary Administrator • Owner</span>
@@ -1528,7 +1534,17 @@ export default function SuperAdminPortalPage() {
                     {selectedRegistration.staffList.map((emp, idx) => (
                       <div key={idx} className="p-2.5 rounded-lg bg-surfaceMuted border border-borderLight flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span>{emp.role === 'KITCHEN' ? '👨‍🍳' : '🍽️'}</span>
+                          <div className={`w-6 h-6 rounded-md flex items-center justify-center border ${
+                            emp.role === 'KITCHEN' 
+                              ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' 
+                              : 'bg-blue-500/10 text-blue-600 border-blue-500/20'
+                          }`}>
+                            {emp.role === 'KITCHEN' ? (
+                              <ChefHat className="w-3.5 h-3.5 stroke-[2]" />
+                            ) : (
+                              <ClipboardList className="w-3.5 h-3.5 stroke-[2]" />
+                            )}
+                          </div>
                           <div>
                             <span className="font-semibold text-heading text-xs block">{emp.name}</span>
                             <span className="text-[10px] text-muted">{emp.phone || emp.email || 'Configured login'}</span>
@@ -1542,7 +1558,9 @@ export default function SuperAdminPortalPage() {
                   </div>
                 ) : (
                   <div className="p-3 bg-surfaceMuted rounded-xl border border-dashed border-borderLight flex items-center gap-2 text-muted">
-                    <span className="text-base">👑</span>
+                    <div className="w-6 h-6 rounded-md bg-surface border border-border flex items-center justify-center">
+                      <ShieldCheck className="w-3.5 h-3.5 text-muted" />
+                    </div>
                     <div>
                       <span className="font-semibold text-heading block">Solo Restaurant Operation</span>
                       <span className="text-[11px]">
@@ -1584,8 +1602,9 @@ export default function SuperAdminPortalPage() {
                     <span className="text-muted text-[11px] block mb-1">Accepted Payment Modes:</span>
                     <div className="flex flex-wrap gap-1.5">
                       {selectedRegistration.billingConfig.paymentMethods.map((pm, idx) => (
-                        <span key={idx} className="px-2 py-0.5 rounded bg-surfaceMuted border border-border text-[11px] text-heading font-medium">
-                          💳 {pm}
+                        <span key={idx} className="px-2 py-0.5 rounded bg-surfaceMuted border border-border text-[11px] text-heading font-medium inline-flex items-center gap-1.5">
+                          <CreditCard className="w-3 h-3 text-primary stroke-[2]" />
+                          <span>{pm}</span>
                         </span>
                       ))}
                     </div>

@@ -287,12 +287,12 @@ export default function PosPage() {
             <div className="flex items-center space-x-1.5 text-xs font-semibold text-primary bg-primary-light px-2.5 sm:px-3 py-1.5 rounded-xl border border-primary/20 shrink-0">
               <span>
                 {businessType === 'CLOUD_KITCHEN'
-                  ? '🛵 Cloud Kitchen Dispatch'
+                  ? 'Cloud Kitchen Dispatch'
                   : businessType === 'BAKERY'
-                  ? '🥐 Bakery Takeaway'
+                  ? 'Bakery Takeaway'
                   : businessType === 'FAST_FOOD'
-                  ? '🍔 QSR High-Speed'
-                  : '⚡ Quick Counter POS'}
+                  ? 'QSR High-Speed'
+                  : 'Quick Counter POS'}
               </span>
             </div>
           )}
@@ -317,10 +317,10 @@ export default function PosPage() {
               className="bg-surfaceMuted border border-border text-heading text-xs font-semibold rounded-xl pl-2.5 pr-7 py-2 focus:outline-none focus:border-primary appearance-none cursor-pointer max-w-[130px] sm:max-w-[180px] truncate"
               title="Sort Order"
             >
-              <option value="COURSE">🍽️ Course Order</option>
-              <option value="PRICE_ASC">💰 Price: Low → High</option>
-              <option value="PRICE_DESC">💎 Price: High → Low</option>
-              <option value="NAME_ASC">🔤 Name: A → Z</option>
+              <option value="COURSE">Course Order</option>
+              <option value="PRICE_ASC">Price: Low to High</option>
+              <option value="PRICE_DESC">Price: High to Low</option>
+              <option value="NAME_ASC">Name: A to Z</option>
             </select>
             <ArrowUpDown className="w-3.5 h-3.5 text-secondary absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
