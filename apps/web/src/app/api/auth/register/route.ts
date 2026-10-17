@@ -170,31 +170,8 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // 2. Create Linked Floor Waiter User for this Restaurant
-      await tx.user.create({
-        data: {
-          tenantId: tenant.id,
-          email: `waiter@${slug}.pos`,
-          fullName: `Floor Waiter (${restaurantName})`,
-          phone: phone || null,
-          roleType: 'WAITER',
-          roleId: waiterRole.id,
-          isActive: true,
-        },
-      });
-
-      // 3. Create Linked Kitchen Chef User for this Restaurant
-      await tx.user.create({
-        data: {
-          tenantId: tenant.id,
-          email: `kitchen@${slug}.pos`,
-          fullName: `Kitchen Chef (${restaurantName})`,
-          phone: phone || null,
-          roleType: 'KITCHEN',
-          roleId: kitchenRole.id,
-          isActive: true,
-        },
-      });
+      // Note: Floor Waiter and Kitchen Chef users are strictly created on-demand
+      // when configured in Onboarding Step 7 or Staff management, not auto-seeded.
 
       // Ensure Profile exists for Supabase Auth UUID
       await tx.$executeRawUnsafe(

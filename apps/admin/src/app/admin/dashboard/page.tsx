@@ -74,12 +74,36 @@ export interface RegistrationReq {
   businessType: string;
   city: string;
   state: string;
+  address?: string;
+  country?: string;
+  postalCode?: string;
+  currency?: string;
+  timezone?: string;
   date: string;
   status: 'PENDING' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'SUSPENDED' | 'REQUIRES_INFO';
   requestedPlan: string;
   requestedModules: string[];
   intendedModules?: string[];
   tableCountEst: number;
+  services?: string[];
+  hasTables?: boolean;
+  tableCount?: number;
+  tableSections?: string[];
+  hasEmployees?: boolean;
+  staffList?: Array<{ name: string; role: string; phone?: string; email?: string }>;
+  billingConfig?: {
+    taxRate?: number;
+    serviceCharge?: number;
+    roundOff?: boolean;
+    invoicePrefix?: string;
+    paymentMethods?: string[];
+  };
+  printerConfig?: {
+    type?: string;
+    printerType?: string;
+    kotPrinter?: boolean;
+    networkIp?: string;
+  };
 }
 
 export interface RestaurantTenant {
@@ -404,6 +428,11 @@ export default function SuperAdminPortalPage() {
               businessType: r.businessType || 'RESTAURANT',
               city: r.city || 'Bengaluru',
               state: r.state || 'Karnataka',
+              address: r.address || '',
+              country: r.country || 'IN',
+              postalCode: r.postalCode || '',
+              currency: r.currency || 'INR',
+              timezone: r.timezone || 'Asia/Kolkata',
               date: r.date || (r.createdAt ? new Date(r.createdAt).toLocaleDateString() : 'Recent'),
               status: r.status || 'PENDING',
               requestedPlan: r.requestedPlan || 'PRO',
@@ -412,7 +441,15 @@ export default function SuperAdminPortalPage() {
                 : Array.isArray(r.intendedModules)
                 ? r.intendedModules
                 : ['pos.billing', 'pos.quick_counter'],
-              tableCountEst: r.tableCountEst ?? 10,
+              tableCountEst: r.tableCountEst ?? r.tableCount ?? 10,
+              services: r.services || [],
+              hasTables: r.hasTables ?? (r.tableCountEst > 0),
+              tableCount: r.tableCount ?? r.tableCountEst ?? 0,
+              tableSections: r.tableSections || [],
+              hasEmployees: r.hasEmployees ?? false,
+              staffList: r.staffList || [],
+              billingConfig: r.billingConfig || null,
+              printerConfig: r.printerConfig || null,
             }))
           );
         }
@@ -1365,65 +1402,266 @@ export default function SuperAdminPortalPage() {
 
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
           REGISTRATION APPLICATION REVIEW MODAL
+          Per Specification: Full 9-Step Onboarding Form Display
           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {selectedRegistration && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-surface rounded-2xl border border-border max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-surface rounded-2xl border border-border max-w-3xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+            {/* Modal Header */}
             <div className="p-4 sm:p-5 border-b border-borderLight flex items-center justify-between bg-surfaceMuted">
               <div>
-                <h3 className="font-semibold text-heading text-base sm:text-lg">{selectedRegistration.restaurantName}</h3>
-                <p className="text-xs text-muted">Application ID: {selectedRegistration.id} • Submitted: {selectedRegistration.date}</p>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-heading text-base sm:text-lg">{selectedRegistration.restaurantName}</h3>
+                  <span
+                    className={`inline-flex px-2 py-0.5 rounded-full font-bold text-[11px] ${
+                      selectedRegistration.status === 'APPROVED'
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-400'
+                        : selectedRegistration.status === 'REJECTED'
+                        ? 'bg-rose-100 text-rose-800'
+                        : 'bg-amber-100 text-amber-800'
+                    }`}
+                  >
+                    {selectedRegistration.status}
+                  </span>
+                </div>
+                <p className="text-xs text-muted mt-0.5">
+                  Application ID: <span className="font-mono">{selectedRegistration.id}</span> • Submitted: {selectedRegistration.date}
+                </p>
               </div>
-              <button onClick={() => setSelectedRegistration(null)} className="p-1 rounded text-placeholder hover:text-heading">
+              <button
+                onClick={() => setSelectedRegistration(null)}
+                className="p-1.5 rounded-lg text-placeholder hover:text-heading hover:bg-surface transition"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
+            {/* Modal Body: Complete Form Review */}
             <div className="p-4 sm:p-6 overflow-y-auto space-y-5 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <span className="text-muted block font-semibold">Owner Contact</span>
-                  <div className="text-heading font-medium">{selectedRegistration.ownerName}</div>
-                  <div className="text-secondary">{selectedRegistration.email}</div>
-                  <div className="text-secondary">{selectedRegistration.phone}</div>
-                </div>
-
-                <div className="space-y-1">
-                  <span className="text-muted block font-semibold">Business Classification</span>
-                  <div className="text-heading font-medium">{selectedRegistration.businessType || 'RESTAURANT'}</div>
-                  {selectedRegistration.city && (
-                    <div className="text-secondary">{selectedRegistration.city}{selectedRegistration.state ? `, ${selectedRegistration.state}` : ''}</div>
-                  )}
-                  {selectedRegistration.tableCountEst != null && selectedRegistration.tableCountEst > 0 && (
-                    <div className="text-primary font-bold">Estimated {selectedRegistration.tableCountEst} Tables</div>
-                  )}
+              {/* 1. Restaurant Profile & Owner Contact */}
+              <div className="p-4 bg-surface rounded-xl border border-borderLight space-y-3">
+                <span className="text-xs font-bold text-primary uppercase tracking-wider block">
+                  1. Restaurant Profile & Owner Contact
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  <div>
+                    <span className="text-muted block text-[11px]">Owner / Applicant</span>
+                    <span className="text-heading font-semibold text-xs block">{selectedRegistration.ownerName}</span>
+                    <span className="text-secondary text-[11px] block">{selectedRegistration.email}</span>
+                    <span className="text-secondary text-[11px] block">{selectedRegistration.phone}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted block text-[11px]">Business Classification</span>
+                    <span className="inline-block px-2 py-0.5 rounded bg-primary-soft text-primary font-bold text-[11px] uppercase mt-0.5">
+                      {selectedRegistration.businessType || 'RESTAURANT'}
+                    </span>
+                    <span className="text-secondary text-[11px] block mt-1">
+                      Plan: <span className="font-semibold text-heading">{selectedRegistration.requestedPlan}</span>
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted block text-[11px]">Location & Currency</span>
+                    <span className="text-heading font-medium text-xs block">
+                      {selectedRegistration.address ? `${selectedRegistration.address}, ` : ''}
+                      {selectedRegistration.city}, {selectedRegistration.state}
+                    </span>
+                    <span className="text-muted text-[11px] block">
+                      {selectedRegistration.country || 'IN'} • {selectedRegistration.currency || 'INR'} (₹)
+                    </span>
+                  </div>
                 </div>
               </div>
 
+              {/* 2. Dining Services & Operating Channels */}
+              <div className="p-4 bg-surface rounded-xl border border-borderLight space-y-2.5">
+                <span className="text-xs font-bold text-primary uppercase tracking-wider block">
+                  2. Dining Services & Operating Channels
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {(selectedRegistration.services && selectedRegistration.services.length > 0
+                    ? selectedRegistration.services
+                    : ['Dine In', 'Takeaway', 'Delivery']
+                  ).map((srv, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-surfaceMuted border border-border font-medium text-heading text-xs"
+                    >
+                      <span className="text-emerald-500 font-bold">✓</span>
+                      <span>{srv}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* 3. Table & Seating Capacity Layout */}
+              <div className="p-4 bg-surface rounded-xl border border-borderLight space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-primary uppercase tracking-wider">
+                    3. Table & Seating Capacity Layout
+                  </span>
+                  <span className="text-xs font-bold text-heading">
+                    {selectedRegistration.tableCountEst || selectedRegistration.tableCount
+                      ? `Total ${selectedRegistration.tableCount || selectedRegistration.tableCountEst} Tables`
+                      : 'No Tables (Quick Counter)'}
+                  </span>
+                </div>
+
+                {selectedRegistration.tableSections && selectedRegistration.tableSections.length > 0 && (
+                  <div>
+                    <span className="text-muted text-[11px] block mb-1.5 font-medium">Configured Dining Areas:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedRegistration.tableSections.map((sec, idx) => (
+                        <span key={idx} className="px-2.5 py-1 rounded-lg bg-surfaceMuted border border-border text-xs text-heading font-medium">
+                          🪑 {sec}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 4. Staff Team & Employee Logins */}
+              <div className="p-4 bg-surface rounded-xl border border-borderLight space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-primary uppercase tracking-wider">
+                    4. Staff Team & Employee Logins
+                  </span>
+                  <span className="text-[11px] font-mono text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded font-bold">
+                    {selectedRegistration.staffList && selectedRegistration.staffList.length > 0
+                      ? `${1 + selectedRegistration.staffList.length} Team Accounts`
+                      : '1 Account (Solo Owner)'}
+                  </span>
+                </div>
+
+                {selectedRegistration.staffList && selectedRegistration.staffList.length > 0 ? (
+                  <div className="space-y-2">
+                    {/* Primary Owner Account */}
+                    <div className="p-2.5 rounded-lg bg-surfaceMuted border border-borderLight flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span>👑</span>
+                        <div>
+                          <span className="font-semibold text-heading text-xs block">{selectedRegistration.ownerName}</span>
+                          <span className="text-[10px] text-muted">Primary Administrator • Owner</span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] bg-primary text-white px-2 py-0.5 rounded font-bold uppercase">Owner</span>
+                    </div>
+
+                    {/* Staff Accounts */}
+                    {selectedRegistration.staffList.map((emp, idx) => (
+                      <div key={idx} className="p-2.5 rounded-lg bg-surfaceMuted border border-borderLight flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span>{emp.role === 'KITCHEN' ? '👨‍🍳' : '🍽️'}</span>
+                          <div>
+                            <span className="font-semibold text-heading text-xs block">{emp.name}</span>
+                            <span className="text-[10px] text-muted">{emp.phone || emp.email || 'Configured login'}</span>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-surface border border-border text-heading">
+                          {emp.role === 'KITCHEN' ? 'Kitchen Chef' : 'Floor Waiter'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-3 bg-surfaceMuted rounded-xl border border-dashed border-borderLight flex items-center gap-2 text-muted">
+                    <span className="text-base">👑</span>
+                    <div>
+                      <span className="font-semibold text-heading block">Solo Restaurant Operation</span>
+                      <span className="text-[11px]">
+                        Applicant configured 0 employee logins. Floor Waiter and Kitchen persona buttons are disabled on their dashboard.
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 5. Billing, Taxation & GST */}
+              <div className="p-4 bg-surface rounded-xl border border-borderLight space-y-3">
+                <span className="text-xs font-bold text-primary uppercase tracking-wider block">
+                  5. Billing, Taxation & GST
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-2.5 rounded-lg bg-surfaceMuted border border-borderLight">
+                    <span className="text-muted text-[10px] block">GST / Tax Rate</span>
+                    <span className="font-bold text-heading text-sm">{selectedRegistration.billingConfig?.taxRate ?? 5}%</span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-surfaceMuted border border-borderLight">
+                    <span className="text-muted text-[10px] block">Service Charge</span>
+                    <span className="font-bold text-heading text-sm">{selectedRegistration.billingConfig?.serviceCharge ?? 0}%</span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-surfaceMuted border border-borderLight">
+                    <span className="text-muted text-[10px] block">Invoice Prefix</span>
+                    <span className="font-bold font-mono text-heading text-sm">{selectedRegistration.billingConfig?.invoicePrefix || 'INV-2026-'}</span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-surfaceMuted border border-borderLight">
+                    <span className="text-muted text-[10px] block">Rupee Round-Off</span>
+                    <span className="font-bold text-emerald-600 text-sm">
+                      {selectedRegistration.billingConfig?.roundOff ? 'Enabled' : 'Disabled'}
+                    </span>
+                  </div>
+                </div>
+
+                {selectedRegistration.billingConfig?.paymentMethods && selectedRegistration.billingConfig.paymentMethods.length > 0 && (
+                  <div>
+                    <span className="text-muted text-[11px] block mb-1">Accepted Payment Modes:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedRegistration.billingConfig.paymentMethods.map((pm, idx) => (
+                        <span key={idx} className="px-2 py-0.5 rounded bg-surfaceMuted border border-border text-[11px] text-heading font-medium">
+                          💳 {pm}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 6. Hardware & Thermal Printers */}
+              <div className="p-4 bg-surface rounded-xl border border-borderLight space-y-3">
+                <span className="text-xs font-bold text-primary uppercase tracking-wider block">
+                  6. Hardware & Thermal Printers
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="p-2.5 rounded-lg bg-surfaceMuted border border-borderLight">
+                    <span className="text-muted text-[10px] block">Receipt Printer</span>
+                    <span className="font-bold text-heading text-xs">
+                      {selectedRegistration.printerConfig?.printerType || selectedRegistration.printerConfig?.type || 'THERMAL_80MM'}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-surfaceMuted border border-borderLight">
+                    <span className="text-muted text-[10px] block">Kitchen KOT Printer</span>
+                    <span className="font-bold text-heading text-xs">
+                      {selectedRegistration.printerConfig?.kotPrinter ? 'Enabled (Auto Print KOT)' : 'Disabled'}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-surfaceMuted border border-borderLight">
+                    <span className="text-muted text-[10px] block">Printer LAN/Network IP</span>
+                    <span className="font-bold font-mono text-heading text-xs">
+                      {selectedRegistration.printerConfig?.networkIp || '192.168.1.100'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 7. Requested Platform Modules */}
               {((selectedRegistration.requestedModules && selectedRegistration.requestedModules.length > 0) ||
                 (selectedRegistration.intendedModules && selectedRegistration.intendedModules.length > 0)) && (
-                <div className="p-4 bg-surfaceMuted rounded-xl border border-borderLight space-y-2">
-                  <span className="text-muted font-semibold block">Requested Platform Modules</span>
+                <div className="p-4 bg-surface rounded-xl border border-borderLight space-y-2.5">
+                  <span className="text-xs font-bold text-primary uppercase tracking-wider block">
+                    7. Requested Platform Modules ({((selectedRegistration.requestedModules || selectedRegistration.intendedModules || []).length)})
+                  </span>
                   <div className="flex flex-wrap gap-1.5">
                     {(selectedRegistration.requestedModules || selectedRegistration.intendedModules || []).map((m: any) => (
-                      <span key={m} className="px-2 py-0.5 rounded bg-surface border border-border font-mono text-[10px] text-heading">
+                      <span key={m} className="px-2.5 py-1 rounded-lg bg-surfaceMuted border border-border font-mono text-[11px] font-semibold text-heading uppercase">
                         {m}
                       </span>
                     ))}
                   </div>
                 </div>
               )}
-
-              <div className="space-y-1">
-                <span className="text-muted font-semibold block">Application Status</span>
-                <span className={`inline-flex px-2.5 py-0.5 rounded-full font-bold text-xs ${
-                  selectedRegistration.status === 'APPROVED' ? 'bg-success-bg text-success' : 'bg-amber-100 text-amber-800'
-                }`}>
-                  {selectedRegistration.status}
-                </span>
-              </div>
             </div>
 
+            {/* Modal Actions Footer */}
             <div className="p-4 border-t border-borderLight bg-surfaceMuted flex flex-col sm:flex-row gap-2.5 sm:items-center sm:justify-between">
               <button
                 onClick={() => handleUpdateRegistrationStatus(selectedRegistration.id, 'REQUIRES_INFO')}
@@ -1443,7 +1681,7 @@ export default function SuperAdminPortalPage() {
                   onClick={() => handleUpdateRegistrationStatus(selectedRegistration.id, 'APPROVED')}
                   className="btn-primary text-xs py-2 px-4 sm:px-5 flex-1 sm:flex-initial"
                 >
-                  Approve & Provision
+                  {selectedRegistration.status === 'APPROVED' ? 'Update & Re-provision' : 'Approve & Provision'}
                 </button>
               </div>
             </div>

@@ -226,33 +226,30 @@ export async function POST(req: NextRequest) {
 
       // 5. Store Staff Configuration & Create Employee Accounts
       if (hasEmployees && Array.isArray(employees) && employees.length > 0) {
+        // Clear any prior non-owner staff accounts for this tenant so only real user-added staff exist
+        await tx.user.deleteMany({
+          where: {
+            tenantId: targetTenantId,
+            roleType: { not: 'OWNER' },
+          },
+        });
+
         for (const emp of employees) {
           if (!emp.name) continue;
           const empRole = (emp.role === 'KITCHEN' ? 'KITCHEN' : emp.role === 'OWNER' ? 'OWNER' : 'WAITER') as any;
           const slugName = emp.name.toLowerCase().replace(/[^a-z0-9]/g, '');
           const empEmail = emp.email || `${slugName || 'staff'}.${Math.floor(100 + Math.random() * 900)}@${tenantRecord.slug || 'zipbill'}.internal`;
 
-          const existing = await tx.user.findFirst({
-            where: {
-              OR: [
-                { email: empEmail },
-                { tenantId: targetTenantId, fullName: emp.name }
-              ]
-            }
+          await tx.user.create({
+            data: {
+              tenantId: targetTenantId,
+              email: empEmail,
+              fullName: emp.name,
+              phone: emp.phone || '+91 98000 00000',
+              roleType: empRole,
+              isActive: true,
+            },
           });
-
-          if (!existing) {
-            await tx.user.create({
-              data: {
-                tenantId: targetTenantId,
-                email: empEmail,
-                fullName: emp.name,
-                phone: emp.phone || '+91 98000 00000',
-                roleType: empRole,
-                isActive: true,
-              },
-            });
-          }
         }
 
         await tx.restaurantSetting.upsert({
@@ -267,6 +264,29 @@ export async function POST(req: NextRequest) {
             tenantId: targetTenantId,
             key: 'staff_config',
             valueJson: employees,
+          },
+        });
+      } else {
+        // Solo Owner: Clean up any non-owner accounts so no fake Waiter or Kitchen users exist
+        await tx.user.deleteMany({
+          where: {
+            tenantId: targetTenantId,
+            roleType: { not: 'OWNER' },
+          },
+        });
+
+        await tx.restaurantSetting.upsert({
+          where: {
+            tenantId_key: {
+              tenantId: targetTenantId,
+              key: 'staff_config',
+            },
+          },
+          update: { valueJson: [] },
+          create: {
+            tenantId: targetTenantId,
+            key: 'staff_config',
+            valueJson: [],
           },
         });
       }

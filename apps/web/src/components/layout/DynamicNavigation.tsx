@@ -138,6 +138,38 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
       ? session.permissions
       : ROLE_DEFAULT_PERMISSIONS[session.roleName] || ROLE_DEFAULT_PERMISSIONS.WAITER;
 
+  // Dynamic staff & persona resolution: Strictly inspect configured staff records
+  const waiterStaff = (staff || []).filter(
+    (s: any) => (s.roleType === 'WAITER' || s.role === 'WAITER') && s.isActive !== false
+  );
+  const kitchenStaff = (staff || []).filter(
+    (s: any) => (s.roleType === 'KITCHEN' || s.role === 'KITCHEN') && s.isActive !== false
+  );
+  const employeeStaff = (staff || []).filter(
+    (s: any) => s.roleType !== 'OWNER' && s.email !== session.email && s.isActive !== false
+  );
+  const hasWaiters = waiterStaff.length > 0;
+  const hasKitchen = kitchenStaff.length > 0;
+  const totalAccountCount = 1 + employeeStaff.length;
+
+  const availablePersonas: Array<{ id: string; label: string; icon: string }> = [
+    { id: 'OWNER', label: 'Owner', icon: '👑' },
+  ];
+  if (hasWaiters) {
+    availablePersonas.push({
+      id: 'WAITER',
+      label: waiterStaff.length > 1 ? `Waiter (${waiterStaff.length})` : 'Waiter',
+      icon: '🍽️',
+    });
+  }
+  if (hasKitchen) {
+    availablePersonas.push({
+      id: 'KITCHEN',
+      label: kitchenStaff.length > 1 ? `Kitchen (${kitchenStaff.length})` : 'Kitchen',
+      icon: '👨‍🍳',
+    });
+  }
+
   // DYNAMIC SIDEBAR RESOLUTION RULE:
   // TENANT + RESTAURANT CONFIGURATION + ENABLED MODULES + USER ROLE + USER PERMISSIONS = Visible Navigation
   const visibleSections: ArchitectureSection[] = generateDynamicNavigation({
@@ -419,38 +451,55 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
                 </div>
               </div>
 
-              {/* Linked Roles: Only accessible for Owner to preview floor/kitchen mode */}
-              {session.roleName === 'OWNER' && (
+              {/* Linked Roles: Dynamic persona switcher strictly based on configured staff */}
+              {(session.roleName === 'OWNER' || hasWaiters || hasKitchen) && (
                 <div className="pt-2 border-t border-borderLight">
                   <div className="text-[10px] font-semibold text-muted uppercase tracking-wider mb-1.5 flex items-center justify-between">
                     <span>Active Persona</span>
-                    <span className="text-[9px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded font-mono font-medium">1 Account</span>
+                    <span className="text-[9px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded font-mono font-medium">
+                      {totalAccountCount === 1 ? '1 Account' : `${totalAccountCount} Accounts`}
+                    </span>
                   </div>
-                  <div className="grid grid-cols-3 gap-1 bg-surface p-1 rounded-lg border border-borderLight">
-                    {[
-                      { id: 'OWNER', label: 'Owner', icon: '👑' },
-                      { id: 'WAITER', label: 'Waiter', icon: '🍽️' },
-                      { id: 'KITCHEN', label: 'Kitchen', icon: '👨‍🍳' },
-                    ].map((r) => {
-                      const isCurrent = session.roleName === r.id;
-                      return (
-                        <button
-                          key={r.id}
-                          type="button"
-                          onClick={() => handleDevSwitchRole(r.id)}
-                          className={`py-1 px-1 rounded text-[11px] font-medium flex items-center justify-center gap-1 transition ${
-                            isCurrent
-                              ? 'bg-primary text-white font-bold shadow-xs'
-                              : 'text-secondary hover:text-heading hover:bg-surfaceMuted'
-                          }`}
-                          title={`Switch persona: ${r.label}`}
-                        >
-                          <span className="text-[10px]">{r.icon}</span>
-                          <span>{r.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+
+                  {availablePersonas.length <= 1 ? (
+                    // Solo Operator: No Waiter or Kitchen configured in the form
+                    <div className="py-1.5 px-2.5 rounded-lg bg-surface border border-borderLight flex items-center justify-between shadow-2xs">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-heading">
+                        <span>👑</span>
+                        <span>Owner (Solo Operator)</span>
+                      </div>
+                      <span className="text-[9px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                        Active
+                      </span>
+                    </div>
+                  ) : (
+                    // Multiple Personas: dynamically render only configured roles
+                    <div
+                      className={`grid ${
+                        availablePersonas.length === 2 ? 'grid-cols-2' : 'grid-cols-3'
+                      } gap-1 bg-surface p-1 rounded-lg border border-borderLight`}
+                    >
+                      {availablePersonas.map((r) => {
+                        const isCurrent = session.roleName === r.id;
+                        return (
+                          <button
+                            key={r.id}
+                            type="button"
+                            onClick={() => handleDevSwitchRole(r.id)}
+                            className={`py-1 px-1 rounded text-[11px] font-medium flex items-center justify-center gap-1 transition ${
+                              isCurrent
+                                ? 'bg-primary text-white font-bold shadow-xs'
+                                : 'text-secondary hover:text-heading hover:bg-surfaceMuted'
+                            }`}
+                            title={`Switch persona: ${r.label}`}
+                          >
+                            <span className="text-[10px]">{r.icon}</span>
+                            <span className="truncate">{r.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -823,19 +872,57 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
 
                   <div className="pt-3 border-t border-borderLight">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold text-heading text-[12px]">Linked Restaurant Accounts (3)</span>
-                      <span className="text-[10px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded font-mono">1 Restaurant</span>
+                      <span className="font-semibold text-heading text-[12px]">
+                        Linked Restaurant Accounts ({totalAccountCount})
+                      </span>
+                      <span className="text-[10px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded font-mono">
+                        1 Restaurant
+                      </span>
                     </div>
+
                     <div className="space-y-1.5">
-                      {[
-                        { id: 'OWNER', label: 'Restaurant Owner', desc: 'Full Management, Menu & Reports', icon: '👑' },
-                        { id: 'WAITER', label: 'Floor Waiter', desc: 'Table POS, Orders & Guest Billing', icon: '🍽️' },
-                        { id: 'KITCHEN', label: 'Kitchen Chef', desc: 'Live KDS Ticket Preparation', icon: '👨‍🍳' },
-                      ].map((p) => {
-                        const isCurrent = session.roleName === p.id;
+                      {/* Primary Owner Account */}
+                      <div className={`p-2.5 rounded-xl border flex items-center justify-between transition ${
+                        session.roleName === 'OWNER'
+                          ? 'bg-primary-soft/30 border-primary/40'
+                          : 'bg-surfaceMuted border-borderLight hover:border-border'
+                      }`}>
+                        <div className="flex items-center space-x-2.5">
+                          <span className="text-base">👑</span>
+                          <div>
+                            <div className="font-semibold text-heading text-[12px] flex items-center gap-1.5">
+                              <span>{session.fullName || 'Restaurant Owner'}</span>
+                              <span className="text-[9px] bg-primary text-white px-1.5 py-0.2 rounded font-bold uppercase">
+                                {session.roleName === 'OWNER' ? 'Active' : 'Owner'}
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-muted">Primary Administrator • Full Management & Reports</div>
+                          </div>
+                        </div>
+                        {session.roleName !== 'OWNER' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleDevSwitchRole('OWNER');
+                              setProfileModalOpen(false);
+                            }}
+                            className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-surface border border-borderLight text-primary hover:bg-primary hover:text-white transition"
+                          >
+                            Switch
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Configured Staff Accounts */}
+                      {employeeStaff.map((emp: any) => {
+                        const isCurrent = session.roleName === emp.roleType;
+                        const roleIcon = emp.roleType === 'KITCHEN' ? '👨‍🍳' : '🍽️';
+                        const roleLabel = emp.roleType === 'KITCHEN' ? 'Kitchen Chef' : 'Floor Waiter';
+                        const roleDesc = emp.roleType === 'KITCHEN' ? 'Live KDS Ticket Preparation' : 'Table POS, Orders & Guest Billing';
+
                         return (
                           <div
-                            key={p.id}
+                            key={emp.id || emp.email}
                             className={`p-2.5 rounded-xl border flex items-center justify-between transition ${
                               isCurrent
                                 ? 'bg-primary-soft/30 border-primary/40'
@@ -843,22 +930,23 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
                             }`}
                           >
                             <div className="flex items-center space-x-2.5">
-                              <span className="text-base">{p.icon}</span>
+                              <span className="text-base">{roleIcon}</span>
                               <div>
                                 <div className="font-semibold text-heading text-[12px] flex items-center gap-1.5">
-                                  <span>{p.label}</span>
+                                  <span>{emp.fullName || emp.name}</span>
+                                  <span className="text-[9px] text-muted font-normal">({roleLabel})</span>
                                   {isCurrent && (
                                     <span className="text-[9px] bg-primary text-white px-1.5 py-0.2 rounded font-bold uppercase">Active</span>
                                   )}
                                 </div>
-                                <div className="text-[10px] text-muted">{p.desc}</div>
+                                <div className="text-[10px] text-muted">{emp.phone || emp.email || roleDesc}</div>
                               </div>
                             </div>
                             {!isCurrent && (
                               <button
                                 type="button"
                                 onClick={() => {
-                                  handleDevSwitchRole(p.id);
+                                  handleDevSwitchRole(emp.roleType);
                                   setProfileModalOpen(false);
                                 }}
                                 className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-surface border border-borderLight text-primary hover:bg-primary hover:text-white transition"
@@ -869,6 +957,16 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
                           </div>
                         );
                       })}
+
+                      {/* Solo Owner Message when no employees configured */}
+                      {employeeStaff.length === 0 && (
+                        <div className="p-3 bg-surface rounded-xl border border-dashed border-borderLight text-center">
+                          <p className="text-[11px] font-medium text-heading">Solo Restaurant Operation</p>
+                          <p className="text-[10px] text-muted mt-0.5">
+                            No waiter or kitchen employee accounts were added during onboarding. The owner manages all floor & counter operations directly.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -243,33 +243,8 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // 5. Create Linked Floor Waiter User for this Restaurant
-      await tx.user.upsert({
-        where: { email: `waiter@${slug}.pos` },
-        update: { tenantId: tenant.id, roleId: waiterRole.id },
-        create: {
-          tenantId: tenant.id,
-          email: `waiter@${slug}.pos`,
-          fullName: `Floor Waiter (${restaurantName})`,
-          roleType: 'WAITER',
-          roleId: waiterRole.id,
-          isActive: true,
-        },
-      });
-
-      // 6. Create Linked Kitchen Chef User for this Restaurant
-      await tx.user.upsert({
-        where: { email: `kitchen@${slug}.pos` },
-        update: { tenantId: tenant.id, roleId: kitchenRole.id },
-        create: {
-          tenantId: tenant.id,
-          email: `kitchen@${slug}.pos`,
-          fullName: `Kitchen Chef (${restaurantName})`,
-          roleType: 'KITCHEN',
-          roleId: kitchenRole.id,
-          isActive: true,
-        },
-      });
+      // Note: Floor Waiter and Kitchen Chef users are strictly created on-demand
+      // when configured in Onboarding Step 7 or Staff management, not auto-seeded.
 
       // 7. Enable default platform modules for clean restaurant workspace
       const defaultModules = [
