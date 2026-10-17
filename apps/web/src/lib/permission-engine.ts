@@ -389,7 +389,7 @@ export function checkModuleAccess(userPermissions: string[], moduleId: string): 
 export const SECTION_MODULE_REQUIREMENTS: Record<string, string[]> = {
   pos: ['pos', 'pos.dine_in', 'pos.quick_counter', 'pos.takeaway', 'pos.delivery'],
   tables: ['tables', 'operations.tables'],
-  orders: ['orders', 'pos.dine_in', 'pos.quick_counter'],
+  orders: ['orders'],
   kitchen: ['kitchen', 'operations.kitchen_kds'],
   menu: ['menu', 'catalog.modifiers_variants', 'ai_menu_import'],
   billing: ['billing', 'billing.thermal_receipts'],
@@ -474,14 +474,16 @@ export function generateDynamicNavigation(params: NavigationGenerationParams): A
 
   // Normalize enabled modules for reliable matching (support lowercase and uppercase)
   const normalizedEnabled = new Set(
-    enabledModules.map((m) => String(m).toLowerCase())
+    enabledModules.map((m) => String(m).toLowerCase().trim())
   );
 
   const hasModule = (token: string) => {
-    const t = token.toLowerCase();
-    if (normalizedEnabled.has(t) || normalizedEnabled.has(token.toUpperCase())) return true;
+    const t = token.toLowerCase().trim();
+    if (normalizedEnabled.has(t)) return true;
     for (const em of normalizedEnabled) {
-      if (em === t || em.includes(t) || t.includes(em)) return true;
+      if (em === t) return true;
+      if (em.startsWith(t + '.')) return true;
+      if (t.startsWith(em + '.')) return true;
     }
     return false;
   };

@@ -16,9 +16,24 @@ import {
   Info,
   Check,
   RefreshCw,
+  Calculator,
+  LayoutGrid,
+  ClipboardList,
+  ChefHat,
+  BookOpen,
+  Package,
+  Users,
+  TrendingDown,
+  BarChart3,
+  QrCode,
+  Sliders,
+  Eye,
+  EyeOff,
+  Search,
 } from 'lucide-react';
 import { SYSTEM_MODULE_REGISTRY } from '@platform/config-engine';
 import { BusinessType, ModuleToken } from '@platform/types';
+import { SECTION_MODULE_REQUIREMENTS } from '@/lib/permission-engine';
 
 const BUSINESS_MODELS: Array<{ type: BusinessType; name: string; icon: string; desc: string }> = [
   { type: 'RESTAURANT', name: 'Fine / Casual Dine-in', icon: '🍽️', desc: 'Table service, live occupancy, KOTs, and split checks' },
@@ -31,6 +46,132 @@ const BUSINESS_MODELS: Array<{ type: BusinessType; name: string; icon: string; d
   { type: 'HOTEL_RESTAURANT', name: 'Hotel Restaurant', icon: '🏨', desc: 'Table service, room billing, guest folios' },
 ];
 
+interface SidebarComponentItem {
+  id: string;
+  name: string;
+  route: string;
+  icon: string;
+  category: 'Operations' | 'Sales' | 'Finance' | 'Catalog' | 'Hardware' | 'CRM' | 'Intelligence';
+  description: string;
+  badge?: string;
+}
+
+const SIDEBAR_COMPONENTS: SidebarComponentItem[] = [
+  {
+    id: 'pos',
+    name: 'Point of Sale (POS)',
+    route: '/pos',
+    icon: '📟',
+    category: 'Sales',
+    description: 'Fast counter billing, dine-in table orders, takeaway parcel sales and quick checkout.',
+    badge: 'Core Billing',
+  },
+  {
+    id: 'tables',
+    name: 'Tables & Floor Management',
+    route: '/tables',
+    icon: '🪑',
+    category: 'Operations',
+    description: 'Interactive visual floor map, table occupancy colors, seat transfers and table merging.',
+  },
+  {
+    id: 'orders',
+    name: 'Live Orders Feed',
+    route: '/orders',
+    icon: '📋',
+    category: 'Operations',
+    description: 'Real-time kitchen order feed, active ticket tracking, pending statuses and order history.',
+  },
+  {
+    id: 'kitchen',
+    name: 'Kitchen Display (KDS)',
+    route: '/kitchen',
+    icon: '👨‍🍳',
+    category: 'Operations',
+    description: 'Live chef prep screen, paperless kitchen tickets (KOT), item timers and prep queues.',
+  },
+  {
+    id: 'menu',
+    name: 'Menu & Food Catalog',
+    route: '/menu',
+    icon: '📖',
+    category: 'Catalog',
+    description: 'Dishes, portion variations, addon groups, price overrides and instant menu updates.',
+  },
+  {
+    id: 'billing',
+    name: 'Invoices & Billing',
+    route: '/billing',
+    icon: '🧾',
+    category: 'Finance',
+    description: 'GST tax invoices, bill splits, manager discounts, bill reprints and refund management.',
+  },
+  {
+    id: 'payments',
+    name: 'Payments & Settlement',
+    route: '/payments',
+    icon: '💳',
+    category: 'Finance',
+    description: 'Dynamic BharatPe / Paytm UPI QR codes, debit/credit cards, cash register shift audits.',
+  },
+  {
+    id: 'inventory',
+    name: 'Inventory & Stock',
+    route: '/inventory',
+    icon: '📦',
+    category: 'Operations',
+    description: 'Raw ingredient tracking, recipe bills-of-materials, low-stock warnings and wastage logs.',
+  },
+  {
+    id: 'customers',
+    name: 'Customers & CRM',
+    route: '/customers',
+    icon: '👥',
+    category: 'CRM',
+    description: 'Guest telephone directory, visit frequency, spend history, feedback and loyalty rewards.',
+  },
+  {
+    id: 'staff',
+    name: 'Staff & Team Access',
+    route: '/staff',
+    icon: '🛡️',
+    category: 'Operations',
+    description: 'Waiter & kitchen employee profiles, PIN access logins, role-based permission control.',
+  },
+  {
+    id: 'expenses',
+    name: 'Daily Store Expenses',
+    route: '/expenses',
+    icon: '📉',
+    category: 'Finance',
+    description: 'Petty cash records, daily vegetable/milk vendor payouts, utility bills and operating costs.',
+  },
+  {
+    id: 'qr',
+    name: 'QR & Digital Ordering',
+    route: '/qr',
+    icon: '📱',
+    category: 'Operations',
+    description: 'High-res printable table QR codes, contactless guest phone ordering and digital menu.',
+  },
+  {
+    id: 'printers',
+    name: 'Printers & Hardware',
+    route: '/printers',
+    icon: '🖨️',
+    category: 'Hardware',
+    description: '80mm cashier thermal invoice printers, 58mm KOT kitchen printers and USB/LAN routing.',
+  },
+  {
+    id: 'reports',
+    name: 'Reports & Analytics',
+    route: '/reports',
+    icon: '📊',
+    category: 'Intelligence',
+    description: 'Daily revenue analytics, item-level sales breakdown, GST reports and staff productivity.',
+  },
+];
+
 export default function SettingsAndModulesPage() {
   const {
     profile,
@@ -41,23 +182,66 @@ export default function SettingsAndModulesPage() {
     toggleModule,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'MODULES' | 'MODEL' | 'BILLING' | 'PRINTERS'>('MODULES');
+  const [activeTab, setActiveTab] = useState<'SIDEBAR' | 'REGISTRY' | 'MODEL' | 'BILLING' | 'PRINTERS'>('SIDEBAR');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
-  const [lastToggled, setLastToggled] = useState<string | null>(null);
+  const [componentSearch, setComponentSearch] = useState<string>('');
+  const [lastToggled, setLastToggled] = useState<{ name: string; status: string } | null>(null);
   const [gstRate, setGstRate] = useState<number>(5);
 
   const categories = ['ALL', 'POINT_OF_SALE', 'OPERATIONS', 'INVENTORY', 'BILLING', 'MARKETING', 'INTELLIGENCE'];
 
-  const filteredModules = Object.values(SYSTEM_MODULE_REGISTRY).filter((mod) => {
+  const filteredMicroModules = Object.values(SYSTEM_MODULE_REGISTRY).filter((mod) => {
     if (selectedCategory === 'ALL') return true;
     return mod.category === selectedCategory;
   });
 
-  const handleToggle = (token: ModuleToken, name: string) => {
-    toggleModule(token);
-    setLastToggled(name);
-    setTimeout(() => setLastToggled(null), 3000);
+  // Determines if a primary sidebar component is currently visible
+  const isComponentActive = (compId: string): boolean => {
+    const reqs = SECTION_MODULE_REQUIREMENTS[compId] || [compId];
+    const normalized = new Set((enabledModules || []).map((m) => String(m).toLowerCase().trim()));
+
+    return reqs.some((req) => {
+      const r = req.toLowerCase().trim();
+      if (normalized.has(r)) return true;
+      for (const m of normalized) {
+        if (m === r || m.startsWith(r + '.') || r.startsWith(m + '.')) return true;
+      }
+      return false;
+    });
   };
+
+  const activeSidebarCount = SIDEBAR_COMPONENTS.filter((c) => isComponentActive(c.id)).length;
+
+  const handleToggleSidebarComponent = (compId: string, compName: string) => {
+    const currentlyActive = isComponentActive(compId);
+    toggleModule(compId as any);
+    setLastToggled({
+      name: compName,
+      status: !currentlyActive ? 'visible in' : 'hidden from',
+    });
+    setTimeout(() => setLastToggled(null), 3500);
+  };
+
+  const handleToggleMicroModule = (token: ModuleToken, name: string) => {
+    const isCurrentlyOn = enabledModules.includes(token);
+    toggleModule(token);
+    setLastToggled({
+      name,
+      status: !isCurrentlyOn ? 'enabled in' : 'disabled from',
+    });
+    setTimeout(() => setLastToggled(null), 3500);
+  };
+
+  const filteredSidebarComponents = SIDEBAR_COMPONENTS.filter((comp) => {
+    if (!componentSearch) return true;
+    const q = componentSearch.toLowerCase();
+    return (
+      comp.name.toLowerCase().includes(q) ||
+      comp.description.toLowerCase().includes(q) ||
+      comp.route.toLowerCase().includes(q) ||
+      comp.category.toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div className="p-6 sm:p-8 max-w-[1400px] mx-auto space-y-6 font-sans">
@@ -68,19 +252,21 @@ export default function SettingsAndModulesPage() {
             <h1 className="text-[26px] sm:text-[30px] font-semibold text-heading tracking-tight leading-tight">
               Store Settings & System Modules
             </h1>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">
-              Live Real-Time Sync
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-semibold flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+              Live Dynamic Sync
             </span>
           </div>
           <p className="text-[13px] text-secondary mt-1">
-            Toggle modules and business model preferences. Sidebar navigation and dashboard widgets adapt instantly in real time.
+            Configure sidebar navigation components, sub-modules and business preferences. Disabling any component immediately hides it from the sidebar and securing its route.
           </p>
         </div>
 
         {/* Tab Controls */}
-        <div className="flex items-center space-x-1.5 bg-surface border border-border p-1 rounded-xl">
+        <div className="flex items-center space-x-1.5 bg-surface border border-border p-1 rounded-xl overflow-x-auto">
           {[
-            { id: 'MODULES', label: `Active Modules (${enabledModules.length})` },
+            { id: 'SIDEBAR', label: `Sidebar Navigation (${activeSidebarCount}/14)` },
+            { id: 'REGISTRY', label: `Micro-Features (${enabledModules.length})` },
             { id: 'MODEL', label: 'Business Model' },
             { id: 'BILLING', label: 'Taxes & Billing' },
             { id: 'PRINTERS', label: 'Thermal Printers' },
@@ -88,9 +274,9 @@ export default function SettingsAndModulesPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition ${
                 activeTab === tab.id
-                  ? 'bg-primary-light text-primary font-semibold'
+                  ? 'bg-primary-light text-primary font-semibold shadow-sm'
                   : 'text-secondary hover:text-main'
               }`}
             >
@@ -102,26 +288,181 @@ export default function SettingsAndModulesPage() {
 
       {/* Real-time alert toast banner */}
       {lastToggled && (
-        <div className="p-3 rounded-xl bg-success-bg border border-success/20 text-success text-xs font-medium flex items-center justify-between animate-fadeIn">
-          <div className="flex items-center space-x-2">
-            <CheckCircle className="w-4 h-4 text-success" />
+        <div className="p-3.5 rounded-xl bg-success-bg border border-success/30 text-success text-xs font-medium flex items-center justify-between shadow-sm animate-fadeIn">
+          <div className="flex items-center space-x-2.5">
+            <CheckCircle className="w-4 h-4 text-success flex-shrink-0" />
             <span>
-              <strong>{lastToggled}</strong> toggled! Sidebar navigation and dashboard reconfigured in real time.
+              <strong>{lastToggled.name}</strong> is now <strong>{lastToggled.status}</strong> sidebar navigation. Saved & synced to database in real time!
             </span>
           </div>
-          <span className="text-[11px] opacity-80">Synced locally & cloud</span>
+          <span className="text-[11px] opacity-80 hidden sm:inline">Instant Real-Time Reaction</span>
         </div>
       )}
 
-      {/* TAB 1: MODULE MANAGEMENT */}
-      {activeTab === 'MODULES' && (
+      {/* TAB 1: SIDEBAR NAVIGATION COMPONENTS (PRIMARY USER REQUEST) */}
+      {activeTab === 'SIDEBAR' && (
+        <div className="space-y-5">
+          {/* Section Information & Control Bar */}
+          <div className="card space-y-4 bg-surface border-border">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h2 className="text-base font-semibold text-heading">
+                    Sidebar Navigation Components Control
+                  </h2>
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">
+                    Dynamic Database Link
+                  </span>
+                </div>
+                <p className="text-xs text-secondary mt-1 max-w-3xl leading-relaxed">
+                  Every sidebar component is completely customizable. When you toggle a component <strong>OFF</strong>, it disappears immediately from your left sidebar navigation and updates PostgreSQL. When you toggle it <strong>ON</strong>, it reappears in real time.
+                </p>
+              </div>
+
+              {/* Status Pill Badge */}
+              <div className="flex items-center space-x-2 text-xs flex-shrink-0">
+                <span className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 font-semibold border border-emerald-200 dark:border-emerald-800/40">
+                  {activeSidebarCount} Visible
+                </span>
+                <span className="px-3 py-1.5 rounded-xl bg-surfaceMuted font-semibold text-secondary border border-borderLight">
+                  {14 - activeSidebarCount} Hidden
+                </span>
+              </div>
+            </div>
+
+            {/* Search Filter */}
+            <div className="pt-2 border-t border-borderLight flex items-center justify-between gap-3">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted" />
+                <input
+                  type="text"
+                  placeholder="Filter sidebar components (e.g. kitchen, pos, tables)..."
+                  value={componentSearch}
+                  onChange={(e) => setComponentSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 rounded-lg text-xs bg-surfaceMuted border border-borderLight text-heading placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <span className="text-[11px] text-muted hidden sm:inline">
+                Showing {filteredSidebarComponents.length} components
+              </span>
+            </div>
+          </div>
+
+          {/* Grid of 14 Sidebar Navigation Components */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredSidebarComponents.map((comp) => {
+              const isActive = isComponentActive(comp.id);
+
+              return (
+                <div
+                  key={comp.id}
+                  className={`card flex flex-col justify-between transition-all duration-200 ${
+                    isActive
+                      ? 'border-primary/40 bg-surface shadow-sm hover:border-primary/60'
+                      : 'border-border bg-surfaceMuted/30 opacity-75 hover:opacity-90'
+                  }`}
+                >
+                  <div>
+                    {/* Top Row: Icon, Route badge & Toggle Switch */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-2.5">
+                        <div
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg ${
+                            isActive
+                              ? 'bg-primary/10 border border-primary/20 shadow-xs'
+                              : 'bg-surfaceMuted border border-borderLight'
+                          }`}
+                        >
+                          {comp.icon}
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-mono uppercase tracking-wider text-muted font-medium">
+                            {comp.category}
+                          </span>
+                          <div className="text-[11px] font-mono text-primary font-semibold">
+                            {comp.route}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Interactive Toggle Switch */}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleSidebarComponent(comp.id, comp.name)}
+                        className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/20 ${
+                          isActive ? 'bg-primary' : 'bg-border hover:bg-placeholder'
+                        }`}
+                        title={isActive ? `Disable ${comp.name} from sidebar` : `Enable ${comp.name} in sidebar`}
+                      >
+                        <div
+                          className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${
+                            isActive ? 'translate-x-6' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Component Name & Description */}
+                    <div className="space-y-1">
+                      <div className="flex items-center space-x-1.5">
+                        <h3 className="font-semibold text-sm text-heading leading-snug">
+                          {comp.name}
+                        </h3>
+                        {comp.badge && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold">
+                            {comp.badge}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-secondary leading-relaxed">
+                        {comp.description}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Bottom Row: Real-time Sidebar Visibility Badge */}
+                  <div className="mt-4 pt-3 border-t border-borderLight flex items-center justify-between text-xs">
+                    <span className="text-[11px] font-mono text-muted">
+                      ID: {comp.id}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSidebarComponent(comp.id, comp.name)}
+                      className={`inline-flex items-center space-x-1.5 font-medium transition cursor-pointer hover:underline text-xs ${
+                        isActive
+                          ? 'text-emerald-600 dark:text-emerald-400 font-semibold'
+                          : 'text-muted'
+                      }`}
+                    >
+                      {isActive ? (
+                        <>
+                          <Eye className="w-3.5 h-3.5 stroke-[2.2]" />
+                          <span>● Visible in Sidebar</span>
+                        </>
+                      ) : (
+                        <>
+                          <EyeOff className="w-3.5 h-3.5 stroke-[2]" />
+                          <span>○ Hidden from Sidebar</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: GRANULAR MICRO-FEATURES REGISTRY */}
+      {activeTab === 'REGISTRY' && (
         <div className="space-y-5">
           <div className="card space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-base font-semibold text-heading">Active System Modules Registry</h2>
+                <h2 className="text-base font-semibold text-heading">Fine-Grained Micro-Features Registry</h2>
                 <p className="text-xs text-secondary mt-0.5">
-                  When a module is toggled OFF, its section is completely removed from the sidebar and dashboard. When toggled ON, it appears instantly.
+                  Granular functional sub-tokens (e.g. Dine-In vs Takeaway mode, BOM Recipes, Thermal Spooler). Toggling these adapts sub-actions within pages.
                 </p>
               </div>
               <div className="flex items-center space-x-2 text-xs">
@@ -150,7 +491,7 @@ export default function SettingsAndModulesPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredModules.map((mod) => {
+            {filteredMicroModules.map((mod) => {
               const isEnabled = enabledModules.includes(mod.token as ModuleToken);
               return (
                 <div
@@ -168,7 +509,7 @@ export default function SettingsAndModulesPage() {
                       </span>
                       <button
                         type="button"
-                        onClick={() => handleToggle(mod.token as ModuleToken, mod.name)}
+                        onClick={() => handleToggleMicroModule(mod.token as ModuleToken, mod.name)}
                         className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-200 ${
                           isEnabled ? 'bg-primary' : 'bg-border'
                         }`}
@@ -193,7 +534,7 @@ export default function SettingsAndModulesPage() {
                   <div className="mt-4 pt-3 border-t border-borderLight flex items-center justify-between text-[11px] text-muted">
                     <span className="font-mono text-[10px]">{mod.token}</span>
                     <span className={`font-semibold ${isEnabled ? 'text-primary' : 'text-muted'}`}>
-                      {isEnabled ? '● Active in Sidebar' : '○ Hidden from Sidebar'}
+                      {isEnabled ? '● Active Sub-feature' : '○ Disabled'}
                     </span>
                   </div>
                 </div>
@@ -203,7 +544,7 @@ export default function SettingsAndModulesPage() {
         </div>
       )}
 
-      {/* TAB 2: BUSINESS MODEL */}
+      {/* TAB 3: BUSINESS MODEL */}
       {activeTab === 'MODEL' && (
         <div className="space-y-4">
           <div className="card space-y-2">
@@ -243,7 +584,7 @@ export default function SettingsAndModulesPage() {
         </div>
       )}
 
-      {/* TAB 3: TAXES & BILLING */}
+      {/* TAB 4: TAXES & BILLING */}
       {activeTab === 'BILLING' && (
         <div className="card space-y-4 max-w-xl">
           <h2 className="text-base font-semibold text-heading">Tax & Invoice Configuration</h2>
@@ -289,7 +630,7 @@ export default function SettingsAndModulesPage() {
         </div>
       )}
 
-      {/* TAB 4: PRINTERS */}
+      {/* TAB 5: PRINTERS */}
       {activeTab === 'PRINTERS' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="card space-y-3">

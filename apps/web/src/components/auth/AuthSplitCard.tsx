@@ -308,8 +308,20 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
         return;
       }
 
-      if (data.status === 'PENDING_APPROVAL') {
-        router.push('/pending-approval');
+      if (data.status === 'PENDING_APPROVAL' || data.redirect?.includes('/pending-approval')) {
+        router.push(data.redirect || '/pending-approval');
+        return;
+      }
+
+      if (data.redirect?.includes('/onboarding')) {
+        if (typeof window !== 'undefined') {
+          document.cookie = 'saas_session_active=true; path=/; max-age=604800; SameSite=Lax';
+          if (data.profile) localStorage.setItem('saas_active_profile', JSON.stringify(data.profile));
+          if (data.tenant) localStorage.setItem('saas_active_tenant', JSON.stringify(data.tenant));
+          window.location.replace(data.redirect);
+        } else {
+          router.push(data.redirect);
+        }
         return;
       }
 

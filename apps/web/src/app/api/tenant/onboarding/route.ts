@@ -66,14 +66,49 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Update Tenant businessType
+      // 1. Update Tenant name, businessType, and set status to PENDING for admin review
       await tx.tenant.update({
         where: { id: targetTenantId },
         data: {
+          name: businessName || tenantRecord.name,
           businessType: businessType as any,
-          status: 'APPROVED', // Ensure approved upon onboarding
+          status: 'PENDING', // Awaiting Super Admin review and approval
         },
       });
+
+      // 1b. Create or Update Registration Request for Admin Approval
+      const existingReq = await tx.registrationRequest.findFirst({
+        where: { tenantId: targetTenantId },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (existingReq) {
+        await tx.registrationRequest.update({
+          where: { id: existingReq.id },
+          data: {
+            applicantName: businessName || tenantRecord.name,
+            applicantEmail: email || '',
+            applicantPhone: phone || '',
+            businessType: businessType as any,
+            tableCountEst: hasTables ? Number(tableCount) : 0,
+            intendedModules: modules,
+            status: 'PENDING',
+          },
+        });
+      } else {
+        await tx.registrationRequest.create({
+          data: {
+            tenantId: targetTenantId,
+            applicantName: businessName || tenantRecord.name,
+            applicantEmail: email || '',
+            applicantPhone: phone || '',
+            businessType: businessType as any,
+            tableCountEst: hasTables ? Number(tableCount) : 0,
+            intendedModules: modules,
+            status: 'PENDING',
+          },
+        });
+      }
 
       // 2. Upsert BusinessProfile
       const profile = await tx.businessProfile.upsert({
@@ -191,33 +226,30 @@ export async function POST(req: NextRequest) {
 
       // 5. Store Staff Configuration & Create Employee Accounts
       if (hasEmployees && Array.isArray(employees) && employees.length > 0) {
+        // Clear any prior non-owner staff accounts for this tenant so only real user-added staff exist
+        await tx.user.deleteMany({
+          where: {
+            tenantId: targetTenantId,
+            roleType: { not: 'OWNER' },
+          },
+        });
+
         for (const emp of employees) {
           if (!emp.name) continue;
           const empRole = (emp.role === 'KITCHEN' ? 'KITCHEN' : emp.role === 'OWNER' ? 'OWNER' : 'WAITER') as any;
           const slugName = emp.name.toLowerCase().replace(/[^a-z0-9]/g, '');
           const empEmail = emp.email || `${slugName || 'staff'}.${Math.floor(100 + Math.random() * 900)}@${tenantRecord.slug || 'zipbill'}.internal`;
 
-          const existing = await tx.user.findFirst({
-            where: {
-              OR: [
-                { email: empEmail },
-                { tenantId: targetTenantId, fullName: emp.name }
-              ]
-            }
+          await tx.user.create({
+            data: {
+              tenantId: targetTenantId,
+              email: empEmail,
+              fullName: emp.name,
+              phone: emp.phone || '+91 98000 00000',
+              roleType: empRole,
+              isActive: true,
+            },
           });
-
-          if (!existing) {
-            await tx.user.create({
-              data: {
-                tenantId: targetTenantId,
-                email: empEmail,
-                fullName: emp.name,
-                phone: emp.phone || '+91 98000 00000',
-                roleType: empRole,
-                isActive: true,
-              },
-            });
-          }
         }
 
         await tx.restaurantSetting.upsert({
@@ -232,6 +264,29 @@ export async function POST(req: NextRequest) {
             tenantId: targetTenantId,
             key: 'staff_config',
             valueJson: employees,
+          },
+        });
+      } else {
+        // Solo Owner: Clean up any non-owner accounts so no fake Waiter or Kitchen users exist
+        await tx.user.deleteMany({
+          where: {
+            tenantId: targetTenantId,
+            roleType: { not: 'OWNER' },
+          },
+        });
+
+        await tx.restaurantSetting.upsert({
+          where: {
+            tenantId_key: {
+              tenantId: targetTenantId,
+              key: 'staff_config',
+            },
+          },
+          update: { valueJson: [] },
+          create: {
+            tenantId: targetTenantId,
+            key: 'staff_config',
+            valueJson: [],
           },
         });
       }
@@ -358,11 +413,13 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Onboarding configuration successfully saved to PostgreSQL database.',
+      status: 'PENDING',
+      message: 'Onboarding configuration successfully saved and submitted for Super Admin review.',
+      redirect: `/pending-approval?tenantId=${targetTenantId}&email=${encodeURIComponent(email || '')}`,
       profile: result.profile,
       tenantId: targetTenantId,
       slug: tenantRecord.slug,
-      restaurantName: tenantRecord.name,
+      restaurantName: businessName || tenantRecord.name,
     });
   } catch (error: any) {
     console.error('Onboarding API error:', error);

@@ -109,6 +109,7 @@ function OnboardingWizardContent() {
   // Authentication & Approval Verification State
   const [authVerified, setAuthVerified] = useState<boolean>(false);
   const [approvalStatus, setApprovalStatus] = useState<'PENDING' | 'APPROVED' | 'REJECTED' | 'NOT_FOUND' | null>(null);
+  const [isOnboardingDone, setIsOnboardingDone] = useState<boolean>(false);
   const [tenantId, setTenantId] = useState<string>('');
   const [tenantSlug, setTenantSlug] = useState<string>('');
   const [applicantOwnerName, setApplicantOwnerName] = useState<string>('');
@@ -273,6 +274,9 @@ function OnboardingWizardContent() {
         if (res.ok && data.success) {
           setApprovalStatus(data.status);
           setAuthVerified(true);
+          if (data.onboardingCompleted !== undefined) {
+            setIsOnboardingDone(Boolean(data.onboardingCompleted));
+          }
 
           if (data.tenantId) setTenantId(data.tenantId);
           if (data.slug) setTenantSlug(data.slug);
@@ -500,7 +504,15 @@ function OnboardingWizardContent() {
           businessType: bType,
         }));
         localStorage.setItem('saas_active_modules', JSON.stringify(selectedModules));
-        localStorage.removeItem('saas_pending_registration');
+        localStorage.setItem('saas_pending_registration', JSON.stringify({
+          tenantId: targetTenant,
+          email,
+          restaurantName: name,
+          city,
+          tableCountEst: usesTables ? tableCount : 0,
+          requestedModules: selectedModules,
+          submittedAt: new Date().toISOString(),
+        }));
       }
 
       // Refresh application tenant data
@@ -510,11 +522,12 @@ function OnboardingWizardContent() {
         console.warn('Silent refresh after onboarding:', e);
       }
 
-      // Route directly to dashboard with clean context reload
+      // Route to pending-approval screen to await Super Admin approval
+      const targetRedirect = data.redirect || `/pending-approval?tenantId=${targetTenant}&email=${encodeURIComponent(email)}`;
       if (typeof window !== 'undefined') {
-        window.location.href = '/dashboard';
+        window.location.href = targetRedirect;
       } else {
-        router.push('/dashboard');
+        router.push(targetRedirect);
       }
     } catch (err: any) {
       console.error('Onboarding final submit error:', err);
@@ -568,8 +581,8 @@ function OnboardingWizardContent() {
     );
   }
 
-  // Protected View 3: Awaiting Admin Approval
-  if (approvalStatus === 'PENDING') {
+  // Protected View 3: Awaiting Admin Approval ONLY if the wizard was already submitted
+  if (approvalStatus === 'PENDING' && isOnboardingDone) {
     return (
       <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-3xl border border-[#E8E6E4] shadow-sm p-8 text-center space-y-4">
@@ -578,7 +591,7 @@ function OnboardingWizardContent() {
           </div>
           <h2 className="text-xl font-bold text-[#1C1917]">Application Under Review</h2>
           <p className="text-xs text-[#78716C] leading-relaxed">
-            Your registration for <strong className="text-[#1C1917]">{name || 'Your Restaurant'}</strong> is currently pending Super Admin approval on Port 9000.
+            Your 9-step registration for <strong className="text-[#1C1917]">{name || 'Your Restaurant'}</strong> is currently pending Super Admin review on Port 9000.
           </p>
           <div className="pt-2 space-y-2">
             <Link
@@ -597,16 +610,16 @@ function OnboardingWizardContent() {
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#1C1917] flex flex-col justify-center py-10 px-4 sm:px-6 lg:px-8 font-sans selection:bg-[#EA580C]/20">
       <div className="sm:mx-auto sm:w-full sm:max-w-3xl">
-        {/* Approved Application Protected Banner */}
-        <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200/80 rounded-2xl text-xs flex items-center justify-between text-emerald-800">
+        {/* Onboarding Setup Wizard Banner */}
+        <div className="mb-4 p-3 bg-orange-50 border border-orange-200/80 rounded-2xl text-xs flex items-center justify-between text-[#C2410C]">
           <div className="flex items-center space-x-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <Sparkles className="w-4 h-4 text-[#EA580C] shrink-0" />
             <span>
-              <strong>Approved Application:</strong> {name || 'Restaurant'} • {city ? `${city}, ` : ''}{state} ({email})
+              <strong>Setup Wizard:</strong> Configure your business model, feature requests, and tables for Super Admin approval.
             </span>
           </div>
-          <span className="font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px]">
-            APPROVED
+          <span className="font-bold px-2.5 py-0.5 rounded-full bg-orange-100 text-[#C2410C] text-[10px] uppercase tracking-wider">
+            Step {step} of 9
           </span>
         </div>
 
@@ -621,12 +634,12 @@ function OnboardingWizardContent() {
                 Restaurant Setup Wizard
               </h1>
               <p className="text-xs text-[#78716C] font-medium mt-0.5">
-                Step {step} of 11: Production V1 System
+                Step {step} of 9: Onboarding Configuration
               </p>
             </div>
           </div>
           <span className="text-xs font-bold px-3 py-1 bg-orange-100/80 text-[#C2410C] border border-orange-200/90 rounded-full">
-            {Math.round((step / 11) * 100)}% Completed
+            {Math.round((step / 9) * 100)}% Completed
           </span>
         </div>
 
@@ -634,7 +647,7 @@ function OnboardingWizardContent() {
         <div className="w-full bg-[#E7E5E4] h-1.5 rounded-full overflow-hidden mb-8">
           <div
             className="h-full bg-[#EA580C] transition-all duration-300 rounded-full"
-            style={{ width: `${(step / 11) * 100}%` }}
+            style={{ width: `${(step / 9) * 100}%` }}
           />
         </div>
       </div>
@@ -1290,190 +1303,176 @@ function OnboardingWizardContent() {
             </div>
           )}
 
-          {/* STEP 09: Taxation & Invoicing */}
+          {/* STEP 09: Taxation, Hardware & Super Admin Approval (FINAL 100%) */}
           {step === 9 && (
             <div className="space-y-6">
               <div className="border-b border-[#F5F5F4] pb-4">
                 <span className="text-xs font-bold text-[#EA580C] uppercase tracking-wider block">
-                  STEP 09
+                  STEP 09 (FINAL • 100%)
                 </span>
                 <h2 className="text-xl font-extrabold text-[#1C1917] mt-1 tracking-tight">
-                  Taxation, GST & Invoicing
+                  Billing, Hardware & Admin Approval
                 </h2>
                 <p className="text-xs sm:text-sm text-[#78716C] mt-1 leading-relaxed">
-                  Configure government tax rates and invoice numbering applied during checkout.
+                  Configure government taxes, receipt printer preferences, and submit your registration for Super Admin approval.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                  <label className="text-xs font-bold text-[#1C1917] block mb-1">
-                    Standard Tax / GST Rate (%)
-                  </label>
-                  <input
-                    type="number"
-                    value={taxRate}
-                    onChange={(e) => setTaxRate(Number(e.target.value))}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#D6D3D1] bg-[#FAFAF9] text-xs font-semibold text-[#1C1917] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
-                    placeholder="5"
-                  />
-                  <span className="text-[11px] text-[#78716C] mt-1.5 block">
-                    Standard 5% restaurant GST (CGST 2.5% + SGST 2.5%)
-                  </span>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-[#1C1917] block mb-1">
-                    Service Charge (%)
-                  </label>
-                  <input
-                    type="number"
-                    value={serviceCharge}
-                    onChange={(e) => setServiceCharge(Number(e.target.value))}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#D6D3D1] bg-[#FAFAF9] text-xs font-semibold text-[#1C1917] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
-                    placeholder="0"
-                  />
-                  <span className="text-[11px] text-[#78716C] mt-1.5 block">
-                    Set 0% if optional or inclusive
-                  </span>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-[#1C1917] block mb-1">
-                    Invoice Prefix
-                  </label>
-                  <input
-                    type="text"
-                    value={invoicePrefix}
-                    onChange={(e) => setInvoicePrefix(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#D6D3D1] bg-[#FAFAF9] text-xs font-mono font-semibold text-[#1C1917] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
-                    placeholder="INV-2026-"
-                  />
-                </div>
-
-                <div className="flex items-center pt-2 sm:pt-6">
-                  <label className="flex items-center space-x-2.5 cursor-pointer">
+              {/* Taxation & GST */}
+              <div>
+                <h3 className="text-xs font-bold text-[#1C1917] uppercase tracking-wider mb-3">
+                  1. Taxes, GST & Invoicing
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-[#1C1917] block mb-1">
+                      Standard Tax / GST Rate (%)
+                    </label>
                     <input
-                      type="checkbox"
-                      checked={roundOff}
-                      onChange={(e) => setRoundOff(e.target.checked)}
-                      className="w-4 h-4 rounded text-[#EA580C] focus:ring-[#EA580C] border-gray-300"
+                      type="number"
+                      value={taxRate}
+                      onChange={(e) => setTaxRate(Number(e.target.value))}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D6D3D1] bg-[#FAFAF9] text-xs font-semibold text-[#1C1917] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
+                      placeholder="5"
                     />
-                    <span className="text-xs font-bold text-[#1C1917]">
-                      Enable Automatic Rupee Round Off
+                    <span className="text-[11px] text-[#78716C] mt-1.5 block">
+                      Standard 5% restaurant GST (CGST 2.5% + SGST 2.5%)
                     </span>
-                  </label>
-                </div>
-              </div>
-            </div>
-          )}
+                  </div>
 
-          {/* STEP 10: Thermal Receipt & KOT Printers */}
-          {step === 10 && (
-            <div className="space-y-5">
-              <div className="border-b border-[#F5F5F4] pb-4">
-                <span className="text-xs font-bold text-[#EA580C] uppercase tracking-wider block">
-                  STEP 10
-                </span>
-                <h2 className="text-xl font-extrabold text-[#1C1917] mt-1 tracking-tight">
-                  Thermal Receipt & KOT Printers
-                </h2>
-                <p className="text-xs sm:text-sm text-[#78716C] mt-1 leading-relaxed">
-                  Connect POS receipt printers and Kitchen Order Ticket (KOT) thermal hardware.
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                {[
-                  { id: 'THERMAL_80MM', title: '80mm Thermal Printer (ESC/POS)', desc: 'Standard high-speed receipt roll for billing counter' },
-                  { id: 'THERMAL_58MM', title: '58mm Compact Bluetooth/USB Printer', desc: 'Handheld or mobile billing device' },
-                  { id: 'NETWORK_LAN', title: 'Ethernet / LAN Kitchen Printer', desc: 'Sends KOT tickets directly to chef station' },
-                  { id: 'SKIP', title: 'Skip / Configure Hardware Later', desc: 'Use digital receipts & KDS screens only' },
-                ].map((p) => (
-                  <label
-                    key={p.id}
-                    className={`flex items-start space-x-3.5 p-4 rounded-2xl border cursor-pointer transition-all ${
-                      printerType === p.id
-                        ? 'border-[#EA580C] bg-[#FFF8F5] shadow-sm'
-                        : 'border-[#E8E6E4] hover:bg-[#FAFAF9]'
-                    }`}
-                  >
+                  <div>
+                    <label className="text-xs font-bold text-[#1C1917] block mb-1">
+                      Service Charge (%)
+                    </label>
                     <input
-                      type="radio"
-                      name="printerType"
-                      checked={printerType === p.id}
-                      onChange={() => setPrinterType(p.id)}
-                      className="mt-1 text-[#EA580C] focus:ring-[#EA580C]"
+                      type="number"
+                      value={serviceCharge}
+                      onChange={(e) => setServiceCharge(Number(e.target.value))}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D6D3D1] bg-[#FAFAF9] text-xs font-semibold text-[#1C1917] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
+                      placeholder="0"
                     />
-                    <div>
-                      <span className="text-xs font-bold text-[#1C1917] block">{p.title}</span>
-                      <span className="text-[11px] text-[#78716C] mt-0.5 block">{p.desc}</span>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
+                    <span className="text-[11px] text-[#78716C] mt-1.5 block">
+                      Set 0% if optional or inclusive
+                    </span>
+                  </div>
 
-          {/* STEP 11: Final Review & Confirmation */}
-          {step === 11 && (
-            <div className="space-y-6">
-              <div className="border-b border-[#F5F5F4] pb-4">
-                <span className="text-xs font-bold text-[#EA580C] uppercase tracking-wider block">
-                  STEP 11 (FINAL)
-                </span>
-                <h2 className="text-xl font-extrabold text-[#1C1917] mt-1 tracking-tight">
-                  Review Configuration & Initialize Workspace
-                </h2>
-                <p className="text-xs sm:text-sm text-[#78716C] mt-1 leading-relaxed">
-                  All configuration will be persisted in PostgreSQL and dynamic navigation will be generated.
-                </p>
-              </div>
+                  <div>
+                    <label className="text-xs font-bold text-[#1C1917] block mb-1">
+                      Invoice Prefix
+                    </label>
+                    <input
+                      type="text"
+                      value={invoicePrefix}
+                      onChange={(e) => setInvoicePrefix(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#D6D3D1] bg-[#FAFAF9] text-xs font-mono font-semibold text-[#1C1917] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/30 focus:border-[#EA580C]"
+                      placeholder="INV-2026-"
+                    />
+                  </div>
 
-              <div className="space-y-3 text-xs bg-[#FAFAF9] p-5 rounded-2xl border border-[#E8E6E4]">
-                <div className="flex justify-between py-1.5 border-b border-[#E8E6E4]">
-                  <span className="text-[#78716C]">Restaurant Legal Name</span>
-                  <span className="font-bold text-[#1C1917]">{name || 'Unnamed'}</span>
-                </div>
-                <div className="flex justify-between py-1.5 border-b border-[#E8E6E4]">
-                  <span className="text-[#78716C]">Location</span>
-                  <span className="font-bold text-[#1C1917]">{city ? `${city}, ` : ''}{state}</span>
-                </div>
-                <div className="flex justify-between py-1.5 border-b border-[#E8E6E4]">
-                  <span className="text-[#78716C]">Business Model</span>
-                  <span className="font-bold text-[#1C1917]">{bType}</span>
-                </div>
-                <div className="flex justify-between py-1.5 border-b border-[#E8E6E4]">
-                  <span className="text-[#78716C]">Table Seating</span>
-                  <span className="font-bold text-[#1C1917]">
-                    {usesTables ? `${tableCount} Tables (${tableSections.join(', ')})` : 'Disabled (Counter Service)'}
-                  </span>
-                </div>
-                <div className="flex justify-between py-1.5 border-b border-[#E8E6E4]">
-                  <span className="text-[#78716C]">Active Modules</span>
-                  <span className="font-bold text-[#1C1917]">{selectedModules.length} Modules Enabled</span>
-                </div>
-                <div className="flex justify-between py-1.5 border-b border-[#E8E6E4]">
-                  <span className="text-[#78716C]">Staff Members</span>
-                  <span className="font-bold text-[#1C1917]">
-                    {hasEmployees && staffList.length > 0 ? `${staffList.length} Staff configured` : 'Owner Only'}
-                  </span>
-                </div>
-                <div className="flex justify-between py-1.5 border-b border-[#E8E6E4]">
-                  <span className="text-[#78716C]">Menu Items</span>
-                  <span className="font-bold text-[#1C1917]">
-                    {aiParsedCategories.length > 0 ? `${aiParsedCategories.length} Categories Parsed` : 'Manual Entry in Menu Catalog'}
-                  </span>
-                </div>
-                <div className="flex justify-between py-1.5">
-                  <span className="text-[#78716C]">Tax / GST Rate</span>
-                  <span className="font-bold text-[#1C1917]">{taxRate}% GST ({roundOff ? 'Auto Round Off' : 'Exact'})</span>
+                  <div className="flex items-center pt-2 sm:pt-6">
+                    <label className="flex items-center space-x-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={roundOff}
+                        onChange={(e) => setRoundOff(e.target.checked)}
+                        className="w-4 h-4 rounded text-[#EA580C] focus:ring-[#EA580C] border-gray-300"
+                      />
+                      <span className="text-xs font-bold text-[#1C1917]">
+                        Enable Automatic Rupee Round Off
+                      </span>
+                    </label>
+                  </div>
                 </div>
               </div>
 
-              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 text-xs flex items-center space-x-2.5">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                <span>Ready to create your live restaurant workspace and launch the POS dashboard.</span>
+              {/* Hardware / Printers */}
+              <div className="pt-3 border-t border-[#F5F5F4]">
+                <h3 className="text-xs font-bold text-[#1C1917] uppercase tracking-wider mb-3">
+                  2. POS Receipt & KOT Printers
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    { id: 'THERMAL_80MM', title: '80mm Thermal Printer', desc: 'Standard ESC/POS counter roll' },
+                    { id: 'THERMAL_58MM', title: '58mm Compact Bluetooth', desc: 'Handheld mobile billing device' },
+                    { id: 'NETWORK_LAN', title: 'LAN Kitchen Printer', desc: 'Direct order tickets to chef station' },
+                    { id: 'SKIP', title: 'Skip / Digital KDS Only', desc: 'Use screen tablets & e-receipts' },
+                  ].map((p) => (
+                    <label
+                      key={p.id}
+                      className={`flex items-start space-x-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                        printerType === p.id
+                          ? 'border-[#EA580C] bg-[#FFF8F5] shadow-sm'
+                          : 'border-[#E8E6E4] hover:bg-[#FAFAF9]'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="printerType"
+                        checked={printerType === p.id}
+                        onChange={() => setPrinterType(p.id)}
+                        className="mt-1 text-[#EA580C] focus:ring-[#EA580C]"
+                      />
+                      <div>
+                        <span className="text-xs font-bold text-[#1C1917] block">{p.title}</span>
+                        <span className="text-[11px] text-[#78716C] mt-0.5 block">{p.desc}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Review Summary */}
+              <div className="pt-3 border-t border-[#F5F5F4]">
+                <h3 className="text-xs font-bold text-[#1C1917] uppercase tracking-wider mb-3">
+                  3. Application Review Summary
+                </h3>
+                <div className="space-y-2 text-xs bg-[#FAFAF9] p-4 rounded-2xl border border-[#E8E6E4]">
+                  <div className="flex justify-between py-1 border-b border-[#E8E6E4]">
+                    <span className="text-[#78716C]">Restaurant Name</span>
+                    <span className="font-bold text-[#1C1917]">{name || 'Unnamed'}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-[#E8E6E4]">
+                    <span className="text-[#78716C]">Location</span>
+                    <span className="font-bold text-[#1C1917]">{city ? `${city}, ` : ''}{state}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-[#E8E6E4]">
+                    <span className="text-[#78716C]">Business Model</span>
+                    <span className="font-bold text-[#1C1917]">{bType}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-[#E8E6E4]">
+                    <span className="text-[#78716C]">Table Seating</span>
+                    <span className="font-bold text-[#1C1917]">
+                      {usesTables ? `${tableCount} Tables (${tableSections.join(', ')})` : 'Disabled (Counter Service)'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-[#E8E6E4]">
+                    <span className="text-[#78716C]">Feature Modules</span>
+                    <span className="font-bold text-[#1C1917]">{selectedModules.length} Modules Requested</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-[#E8E6E4]">
+                    <span className="text-[#78716C]">Staff Setup</span>
+                    <span className="font-bold text-[#1C1917]">
+                      {hasEmployees && staffList.length > 0 ? `${staffList.length} Staff configured` : 'Owner Only'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-[#78716C]">Tax / GST</span>
+                    <span className="font-bold text-[#1C1917]">{taxRate}% GST ({roundOff ? 'Auto Round Off' : 'Exact'})</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ready for Super Admin Approval Alert */}
+              <div className="p-4 bg-orange-50 border border-orange-200/90 rounded-2xl text-[#9A3412] text-xs flex items-start space-x-3 shadow-sm">
+                <ShieldCheck className="w-5 h-5 text-[#EA580C] shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <span className="font-bold text-[#7C2D12] text-xs block">
+                    Approval for Admin
+                  </span>
+                  <span className="text-[11px] leading-relaxed block text-[#9A3412]">
+                    All 9 onboarding steps are 100% filled. Clicking the button below transmits your registration details directly to the Super Admin portal on Port 9000. Once approved by the administrator, your dynamic restaurant dashboard is immediately generated.
+                  </span>
+                </div>
               </div>
             </div>
           )}
@@ -1491,10 +1490,10 @@ function OnboardingWizardContent() {
               </button>
             ) : <div />}
 
-            {step < 11 ? (
+            {step < 9 ? (
               <button
                 type="button"
-                onClick={() => setStep((prev) => Math.min(11, prev + 1))}
+                onClick={() => setStep((prev) => Math.min(9, prev + 1))}
                 className="px-6 py-2.5 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white font-bold text-xs flex items-center space-x-1.5 shadow-md transition"
               >
                 <span>Continue</span>
@@ -1505,17 +1504,18 @@ function OnboardingWizardContent() {
                 type="button"
                 onClick={handleFinalSubmit}
                 disabled={submitting}
-                className="px-6 py-3 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white font-bold text-xs flex items-center space-x-2 shadow-lg transition disabled:opacity-60"
+                className="px-7 py-3 rounded-2xl bg-[#EA580C] hover:bg-[#C2410C] text-white font-bold text-xs sm:text-sm flex items-center space-x-2.5 shadow-xl transition-all disabled:opacity-60 ring-4 ring-[#EA580C]/20"
               >
                 {submitting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Writing to Database...</span>
+                    <span>Submitting to Admin...</span>
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-4 h-4" />
-                    <span>Launch Restaurant Workspace</span>
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Approval for Admin (100% Complete)</span>
+                    <ArrowRight className="w-4 h-4 ml-1" />
                   </>
                 )}
               </button>

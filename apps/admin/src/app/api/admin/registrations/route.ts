@@ -9,6 +9,17 @@ export async function GET() {
         tenant: {
           include: {
             businessProfile: true,
+            settings: true,
+            tableSections: {
+              orderBy: { sortOrder: 'asc' },
+            },
+            tables: {
+              select: { id: true, tableNumber: true, tableName: true, status: true },
+            },
+            users: {
+              select: { id: true, fullName: true, email: true, phone: true, roleType: true, isActive: true },
+            },
+            modules: true,
           },
         },
       },
@@ -16,27 +27,68 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
-      requests: requests.map((r) => ({
-        id: r.id,
-        tenantId: r.tenantId,
-        restaurantName: r.tenant?.name || r.tenant?.businessProfile?.businessName || 'Unknown Restaurant',
-        ownerName: r.applicantName || 'Applicant',
-        applicantName: r.applicantName,
-        email: r.applicantEmail || '',
-        applicantEmail: r.applicantEmail,
-        phone: r.applicantPhone || '',
-        applicantPhone: r.applicantPhone,
-        businessType: r.businessType || 'RESTAURANT',
-        intendedModules: r.intendedModules || null,
-        requestedModules: r.intendedModules || null,
-        status: r.status || 'PENDING',
-        rejectionReason: r.rejectionReason,
-        requestedPlan: 'PRO',
-        tableCountEst: r.tableCountEst || null,
-        city: r.tenant?.businessProfile?.city || 'Bengaluru',
-        state: r.tenant?.businessProfile?.state || 'Karnataka',
-        createdAt: r.createdAt.toISOString(),
-      })),
+      requests: requests.map((r) => {
+        const settingsMap = new Map((r.tenant?.settings || []).map((s: any) => [s.key, s.valueJson]));
+        const staffConfig = (settingsMap.get('staff_config') as any[]) || [];
+        const billingConfig = (settingsMap.get('billing_config') as any) || null;
+        const printerConfig = (settingsMap.get('printer_config') as any) || null;
+        const servicesConfig = (settingsMap.get('services_config') as any[]) || [];
+        const tableSections = (r.tenant?.tableSections || []).map((s: any) => s.name);
+        const usersList = (r.tenant?.users || []).filter((u: any) => u.roleType !== 'SUPER_ADMIN');
+        const staffEmployees = usersList.filter((u: any) => u.roleType !== 'OWNER');
+
+        return {
+          id: r.id,
+          tenantId: r.tenantId,
+          restaurantName: r.tenant?.name || r.tenant?.businessProfile?.businessName || 'Unknown Restaurant',
+          ownerName: r.applicantName || 'Applicant',
+          applicantName: r.applicantName,
+          email: r.applicantEmail || '',
+          applicantEmail: r.applicantEmail,
+          phone: r.applicantPhone || '',
+          applicantPhone: r.applicantPhone,
+          businessType: r.businessType || 'RESTAURANT',
+          intendedModules: r.intendedModules || null,
+          requestedModules: r.intendedModules || null,
+          status: r.status || 'PENDING',
+          rejectionReason: r.rejectionReason,
+          requestedPlan: 'PRO',
+          tableCountEst: r.tableCountEst || null,
+          city: r.tenant?.businessProfile?.city || 'Bengaluru',
+          state: r.tenant?.businessProfile?.state || 'Karnataka',
+          address: r.tenant?.businessProfile?.address || '',
+          country: r.tenant?.businessProfile?.country || 'IN',
+          postalCode: r.tenant?.businessProfile?.postalCode || '',
+          currency: r.tenant?.businessProfile?.currencyCode || 'INR',
+          timezone: r.tenant?.businessProfile?.timezone || 'Asia/Kolkata',
+          services: servicesConfig.length > 0 ? servicesConfig : ['Dine In', 'Takeaway', 'Delivery', 'Online Ordering', 'Counter Ordering'],
+          hasTables: (r.tableCountEst != null && r.tableCountEst > 0) || (r.tenant?.tables?.length ?? 0) > 0,
+          tableCount: r.tableCountEst || r.tenant?.tables?.length || 0,
+          tableSections: tableSections.length > 0 ? tableSections : ['Main Dining', 'AC Hall', 'Outdoor Terrace'],
+          hasEmployees: staffConfig.length > 0 || staffEmployees.length > 0,
+          staffList: staffConfig.length > 0
+            ? staffConfig
+            : staffEmployees.map((u: any) => ({
+                name: u.fullName,
+                role: u.roleType,
+                phone: u.phone,
+                email: u.email,
+              })),
+          billingConfig: billingConfig || {
+            taxRate: 5,
+            serviceCharge: 0,
+            roundOff: true,
+            invoicePrefix: 'INV-2026-',
+            paymentMethods: ['Cash', 'UPI', 'Credit/Debit Card', 'Food Vouchers'],
+          },
+          printerConfig: printerConfig || {
+            printerType: 'THERMAL_80MM',
+            kotPrinter: true,
+            networkIp: '192.168.1.100',
+          },
+          createdAt: r.createdAt.toISOString(),
+        };
+      }),
     });
   } catch (error: any) {
     console.error('Fetch registration requests error:', error);
@@ -86,6 +138,62 @@ export async function POST(req: NextRequest) {
           where: { id: reg.tenantId },
           data: { status: 'APPROVED' },
         });
+
+        // Ensure business profile marks onboardingCompleted = true
+        await tx.businessProfile.updateMany({
+          where: { tenantId: reg.tenantId },
+          data: { onboardingCompleted: true },
+        });
+
+        // Ensure requested modules are enabled
+        if (Array.isArray(reg.intendedModules) && reg.intendedModules.length > 0) {
+          for (const mod of reg.intendedModules as string[]) {
+            const moduleToken = String(mod).toLowerCase();
+            await tx.tenantModule.upsert({
+              where: {
+                tenantId_moduleToken: {
+                  tenantId: reg.tenantId,
+                  moduleToken,
+                },
+              },
+              update: { isEnabled: true },
+              create: {
+                tenantId: reg.tenantId,
+                moduleToken,
+                isEnabled: true,
+              },
+            });
+          }
+        }
+
+        // Provision seating tables if not already generated
+        const existingTablesCount = await tx.table.count({
+          where: { tenantId: reg.tenantId },
+        });
+
+        if (existingTablesCount === 0 && reg.tableCountEst && reg.tableCountEst > 0) {
+          const defaultSection = await tx.tableSection.create({
+            data: {
+              tenantId: reg.tenantId,
+              name: 'Main Dining',
+              sortOrder: 1,
+            },
+          });
+
+          const tablesData = [];
+          for (let i = 1; i <= reg.tableCountEst; i++) {
+            tablesData.push({
+              tenantId: reg.tenantId,
+              sectionId: defaultSection.id,
+              tableNumber: `T${i}`,
+              tableName: `Table ${i}`,
+              capacity: i % 3 === 0 ? 6 : i % 2 === 0 ? 4 : 2,
+              status: 'AVAILABLE' as const,
+              sortOrder: i,
+            });
+          }
+          await tx.table.createMany({ data: tablesData });
+        }
 
         // Seed default starter subscription if none
         const starterPlan = await tx.subscriptionPlan.findFirst({

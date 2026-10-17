@@ -188,7 +188,12 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // 10. Compute Real Live Statistics from Database Orders
+    // 10. Fetch Restaurant Settings (services, staff_config, billing_config, printer_config)
+    const settings = await prisma.restaurantSetting.findMany({
+      where: { tenantId: activeTenantId },
+    });
+
+    // 11. Compute Real Live Statistics from Database Orders
     const totalOrdersCount = orders.length;
     const completedOrders = orders.filter((o) => o.status === 'COMPLETED' || o.status === 'BILLED');
     const totalRevenuePaise = completedOrders.reduce((acc, o) => acc + (o.grandTotal || 0), 0);
@@ -228,6 +233,7 @@ export async function GET(req: NextRequest) {
       expenses,
       inventory,
       staff,
+      settings,
       stats,
       modules: tenant.modules
         ? tenant.modules.filter((m: any) => m.isEnabled).map((m: any) => m.moduleToken)
