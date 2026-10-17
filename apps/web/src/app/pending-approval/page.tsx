@@ -114,9 +114,25 @@ function PendingApprovalContent() {
   useEffect(() => {
     if (status !== 'APPROVED') return;
 
-    // Set cookie so authenticated pages load smoothly
+    // Set cookie and update localStorage so authenticated pages load smoothly
     if (typeof document !== 'undefined') {
       document.cookie = 'saas_session_active=true; path=/; max-age=604800; SameSite=Lax';
+    }
+    if (typeof window !== 'undefined') {
+      try {
+        const rawTenant = localStorage.getItem('saas_active_tenant');
+        if (rawTenant) {
+          const parsed = JSON.parse(rawTenant);
+          parsed.status = 'APPROVED';
+          localStorage.setItem('saas_active_tenant', JSON.stringify(parsed));
+        }
+        const rawProfile = localStorage.getItem('saas_active_profile');
+        if (rawProfile) {
+          const parsedProf = JSON.parse(rawProfile);
+          parsedProf.onboardingCompleted = true;
+          localStorage.setItem('saas_active_profile', JSON.stringify(parsedProf));
+        }
+      } catch {}
     }
 
     setRedirectCountdown(3);
@@ -127,7 +143,11 @@ function PendingApprovalContent() {
           const targetUrl = onboardingCompleted
             ? '/dashboard'
             : `/onboarding?tenantId=${tenantId}&email=${encodeURIComponent(email)}`;
-          router.push(targetUrl);
+          if (typeof window !== 'undefined') {
+            window.location.href = targetUrl;
+          } else {
+            router.push(targetUrl);
+          }
           return 0;
         }
         return prev - 1;
@@ -231,6 +251,19 @@ function PendingApprovalContent() {
 
                 <div className="flex justify-between items-center text-[#78716C]">
                   <span className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-[#A8A29E]" /> Setup Wizard Status:
+                  </span>
+                  <span className={`font-semibold px-2 py-0.5 rounded-full text-[11px] ${
+                    onboardingCompleted
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                      : 'bg-amber-100 text-amber-800 border border-amber-200'
+                  }`}>
+                    {onboardingCompleted ? '✓ 9 Steps Submitted to Admin' : 'Incomplete - Wizard Required'}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center text-[#78716C]">
+                  <span className="flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-[#A8A29E]" /> Approval Stage:
                   </span>
                   <span className="font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
@@ -245,6 +278,26 @@ function PendingApprovalContent() {
                   </span>
                 </div>
               </div>
+
+              {/* Incomplete Wizard Action Banner */}
+              {!onboardingCompleted && (
+                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-left space-y-2.5">
+                  <div className="flex items-center space-x-2 text-amber-900 font-bold text-xs">
+                    <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Restaurant Setup Wizard Required</span>
+                  </div>
+                  <p className="text-xs text-amber-800 leading-relaxed">
+                    You have not submitted the 9-step setup wizard yet. The Super Admin needs your business details, tables, staff, and module selections to approve your restaurant.
+                  </p>
+                  <Link
+                    href={`/onboarding?tenantId=${tenantId}&email=${encodeURIComponent(email)}`}
+                    className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white text-xs font-bold transition shadow-md"
+                  >
+                    <span>Open Restaurant Setup Wizard (Step 1 of 9)</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
+              )}
 
               {/* Information Notice */}
               <div className="p-3.5 rounded-xl bg-orange-50/70 border border-orange-200/60 text-left flex items-start space-x-3 text-xs text-[#9A3412]">

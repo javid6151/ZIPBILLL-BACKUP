@@ -246,7 +246,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Registration submitted successfully. Waiting for Platform Admin approval.',
+      message: 'Registration created successfully. Please configure your restaurant setup wizard.',
       userId: authUserId,
       tenantId: result.tenant.id,
       tenant: result.tenant,
@@ -254,7 +254,7 @@ export async function POST(req: NextRequest) {
       user: result.user,
       registrationId: result.registration.id,
       status: 'PENDING',
-      redirect: '/pending-approval',
+      redirect: `/onboarding?tenantId=${result.tenant.id}&email=${encodeURIComponent(email)}`,
     });
   } catch (error: any) {
     console.error('Registration API error:', error);

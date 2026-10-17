@@ -303,12 +303,29 @@ function OnboardingWizardContent() {
             const mapped = mapRequestedModulesToWizard(data.intendedModules);
             setSelectedModules(mapped);
           }
+        } else if (resolvedTenantId || storedPending || storedTenant) {
+          setApprovalStatus('PENDING');
+          setAuthVerified(true);
+          if (storedPending?.restaurantName) setName(storedPending.restaurantName);
+          else if (storedTenant?.name) setName(storedTenant.name);
+          if (storedPending?.email) setEmail(storedPending.email);
+          if (storedPending?.businessType) setBType(storedPending.businessType);
+          else if (storedTenant?.businessType) setBType(storedTenant.businessType);
+          if (storedPending?.tableCount) setTableCount(Number(storedPending.tableCount));
         } else {
           setApprovalStatus('NOT_FOUND');
         }
       } catch (err) {
         console.error('Error verifying approved tenant status:', err);
-        setApprovalStatus('NOT_FOUND');
+        if (resolvedTenantId || storedPending || storedTenant) {
+          setApprovalStatus('PENDING');
+          setAuthVerified(true);
+          if (storedPending?.restaurantName) setName(storedPending.restaurantName);
+          else if (storedTenant?.name) setName(storedTenant.name);
+          if (storedPending?.email) setEmail(storedPending.email);
+        } else {
+          setApprovalStatus('NOT_FOUND');
+        }
       } finally {
         setLoadingInitial(false);
       }

@@ -308,20 +308,37 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
         return;
       }
 
-      if (data.status === 'PENDING_APPROVAL' || data.redirect?.includes('/pending-approval')) {
-        router.push(data.redirect || '/pending-approval');
-        return;
-      }
-
       if (data.redirect?.includes('/onboarding')) {
         if (typeof window !== 'undefined') {
           document.cookie = 'saas_session_active=true; path=/; max-age=604800; SameSite=Lax';
           if (data.profile) localStorage.setItem('saas_active_profile', JSON.stringify(data.profile));
           if (data.tenant) localStorage.setItem('saas_active_tenant', JSON.stringify(data.tenant));
+          if (data.user) {
+            localStorage.setItem(
+              'saas_active_session',
+              JSON.stringify({
+                ...session,
+                tenantId: data.tenant?.id || data.tenantId,
+                fullName: data.user.fullName,
+                email: data.user.email,
+                userId: data.user.id,
+                roleName: data.user.roleType || 'OWNER',
+                permissions: ['*'],
+              })
+            );
+          }
           window.location.replace(data.redirect);
         } else {
           router.push(data.redirect);
         }
+        return;
+      }
+
+      if (data.status === 'PENDING_APPROVAL' || data.redirect?.includes('/pending-approval')) {
+        if (typeof window !== 'undefined') {
+          if (data.tenant) localStorage.setItem('saas_active_tenant', JSON.stringify(data.tenant));
+        }
+        router.push(data.redirect || `/pending-approval?tenantId=${data.tenantId}&email=${encodeURIComponent(cleanEmail)}`);
         return;
       }
 
@@ -418,6 +435,16 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
         throw new Error(data.error || 'Failed to register restaurant.');
       }
 
+      const activeSessionObj = {
+        ...session,
+        tenantId: data.tenantId,
+        fullName,
+        email: email.trim(),
+        roleName: 'OWNER',
+        permissions: ['*'],
+        userId: data.userId,
+      };
+
       try {
         localStorage.setItem(
           'saas_pending_registration',
@@ -430,11 +457,22 @@ export function AuthSplitCard({ defaultMode = 'login' }: { defaultMode?: 'login'
             businessType: bType,
             tableCount,
             submittedAt: new Date().toISOString(),
+            onboardingCompleted: false,
           })
         );
+        localStorage.setItem('saas_active_session', JSON.stringify(activeSessionObj));
+        if (data.tenant) localStorage.setItem('saas_active_tenant', JSON.stringify(data.tenant));
+        localStorage.setItem('saas_active_business_type', bType);
+        document.cookie = 'saas_session_active=true; path=/; max-age=604800; SameSite=Lax';
       } catch {}
 
-      router.push(`/pending-approval?tenantId=${data.tenantId}&email=${encodeURIComponent(email.trim())}`);
+      // Flow: Login/Register -> Setup Wizard (between them) -> Admin Review -> Approval
+      const wizardUrl = `/onboarding?tenantId=${data.tenantId}&email=${encodeURIComponent(email.trim())}`;
+      if (typeof window !== 'undefined') {
+        window.location.replace(wizardUrl);
+      } else {
+        router.push(wizardUrl);
+      }
     } catch (err: any) {
       setAuthError(err.message || 'Registration failed. Please try again.');
     } finally {

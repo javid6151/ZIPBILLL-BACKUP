@@ -233,6 +233,44 @@ export function DynamicNavigation({ children }: { children: React.ReactNode }) {
     }
   }, [isPublicPage, session?.userId, session?.email, router]);
 
+  // STRICT WORKFLOW GUARD:
+  // Register -> Wizard (/onboarding) -> Admin Review (/pending-approval) -> Admin Approves -> Dashboard (/dashboard)
+  // Dashboard is strictly inaccessible until Super Admin reviews and approves on port 9000!
+  React.useEffect(() => {
+    if (!isPublicPage && (session?.userId || session?.email)) {
+      let storedTenant: any = null;
+      try {
+        const raw = localStorage.getItem('saas_active_tenant');
+        if (raw) storedTenant = JSON.parse(raw);
+      } catch {}
+
+      let storedPending: any = null;
+      try {
+        const raw = localStorage.getItem('saas_pending_registration');
+        if (raw) storedPending = JSON.parse(raw);
+      } catch {}
+
+      let storedProfile: any = null;
+      try {
+        const raw = localStorage.getItem('saas_active_profile');
+        if (raw) storedProfile = JSON.parse(raw);
+      } catch {}
+
+      const activeStatus = (currentTenant as any)?.status || storedTenant?.status || (storedPending ? 'PENDING' : null);
+      const activeTenantId = profile.tenantId || session.tenantId || currentTenant?.id || storedTenant?.id || storedPending?.tenantId;
+      const activeEmail = session.email || storedPending?.email;
+      const isComplete = profile.onboardingCompleted || storedProfile?.onboardingCompleted || storedPending?.onboardingCompleted;
+
+      if (activeStatus === 'PENDING' && !session.isSuperAdmin) {
+        if (!isComplete) {
+          router.replace(`/onboarding?tenantId=${activeTenantId || ''}&email=${encodeURIComponent(activeEmail || '')}`);
+        } else {
+          router.replace(`/pending-approval?tenantId=${activeTenantId || ''}&email=${encodeURIComponent(activeEmail || '')}`);
+        }
+      }
+    }
+  }, [isPublicPage, session?.userId, session?.email, session?.tenantId, session?.isSuperAdmin, profile.tenantId, profile.onboardingCompleted, currentTenant?.id, (currentTenant as any)?.status, router]);
+
   if (isPublicPage) {
     return <div className="min-h-screen w-full bg-background text-main overflow-x-hidden font-sans">{children}</div>;
   }
