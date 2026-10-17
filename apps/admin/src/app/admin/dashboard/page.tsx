@@ -12,18 +12,7 @@ import {
   Layers,
   Zap,
   Sliders,
-  Inbox,
-  HelpCircle,
   Bell,
-  DollarSign,
-  Activity,
-  HardDrive,
-  Shield,
-  FileText,
-  Share2,
-  Code2,
-  Flag,
-  Settings,
   Search,
   CheckCircle2,
   XCircle,
@@ -352,18 +341,6 @@ export default function SuperAdminPortalPage() {
     { id: 'plans_features', name: 'Plans & Features', icon: <Layers className="w-4 h-4" />, subtabs: ['Plans Registry', 'Feature Entitlements', 'Usage Quotas', 'Pricing Tiers'] },
     { id: 'platform_modules', name: 'Platform Modules', icon: <Zap className="w-4 h-4" />, subtabs: ['Module Registry', 'Global Toggles', 'Beta Features', 'Maintenance'] },
     { id: 'restaurant_configuration', name: 'Restaurant Configuration', icon: <Sliders className="w-4 h-4" />, subtabs: ['Config Inspector', 'Printer Routing', 'Tax & Invoice Rules', 'Hardware Bindings'] },
-    { id: 'requests', name: 'Requests', icon: <Inbox className="w-4 h-4" />, badge: requests.filter((r) => r.status === 'PENDING').length, subtabs: ['All Requests', 'Upgrades', 'Module Requests', 'Refunds', 'Resolved'] },
-    { id: 'support', name: 'Support', icon: <HelpCircle className="w-4 h-4" />, badge: tickets.filter((t) => t.status === 'OPEN').length, subtabs: ['All Tickets', 'Open', 'In Progress', 'Escalated', 'Resolved'] },
-    { id: 'notifications', name: 'Notifications & Announcements', icon: <Bell className="w-4 h-4" />, subtabs: ['Broadcasts', 'Targeted Alerts', 'Scheduled Messages', 'Templates'] },
-    { id: 'finance', name: 'Finance & Revenue', icon: <DollarSign className="w-4 h-4" />, subtabs: ['MRR / ARR Overview', 'SaaS Payments', 'Failed Payments (Dunning)', 'Invoices', 'Refunds'] },
-    { id: 'system_monitoring', name: 'System Monitoring', icon: <Activity className="w-4 h-4" />, subtabs: ['Health Overview', 'API Latency (p99)', 'Database Metrics', 'Queue & Background Jobs'] },
-    { id: 'storage_data', name: 'Storage & Data', icon: <HardDrive className="w-4 h-4" />, subtabs: ['Storage Usage', 'Database Size', 'S3 Backups', 'Retention Policies'] },
-    { id: 'security', name: 'Security & Access', icon: <Shield className="w-4 h-4" />, subtabs: ['Security Overview', 'Admin Users & Roles', 'Active Sessions', 'Failed Logins', 'IP Policies'] },
-    { id: 'audit_logs', name: 'Audit Logs', icon: <FileText className="w-4 h-4" />, subtabs: ['All Logs', 'Admin Actions', 'Tenant Changes', 'Security Events'] },
-    { id: 'integrations', name: 'Integrations', icon: <Share2 className="w-4 h-4" />, subtabs: ['Payment Gateways', 'Email & SMS', 'AI Engines', 'Cloud Storage'] },
-    { id: 'developer', name: 'Developer & API', icon: <Code2 className="w-4 h-4" />, subtabs: ['API Keys', 'Webhook Endpoints', 'Rate Limiting', 'Developer Logs'] },
-    { id: 'feature_flags', name: 'Feature Flags', icon: <Flag className="w-4 h-4" />, subtabs: ['Global Flags', 'Plan Flags', 'Tenant Overrides', 'Kill Switches'] },
-    { id: 'settings', name: 'Platform Settings', icon: <Settings className="w-4 h-4" />, subtabs: ['General', 'Authentication Policies', 'Billing Engine', 'Maintenance Mode'] },
   ];
 
   const currentSection = ADMIN_SECTIONS.find((s) => s.id === activeSectionId) || ADMIN_SECTIONS[0];
@@ -579,10 +556,10 @@ export default function SuperAdminPortalPage() {
           </div>
         </div>
 
-        {/* 21 Clean Navigation Items */}
+        {/* Navigation Items */}
         <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-0.5">
           <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-placeholder">
-            Platform Sections ({ADMIN_SECTIONS.length})
+            Platform Sections
           </div>
 
           {ADMIN_SECTIONS.map((sec) => {
