@@ -117,62 +117,56 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'APPROVE') {
-      const adminUser = await prisma.user.findFirst({
-        where: { roleType: 'SUPER_ADMIN' },
-      });
-      const validUserId = adminUser?.id || (await prisma.user.findFirst({ where: { tenantId: reg.tenantId } }))?.id;
-
-      await prisma.$transaction(async (tx) => {
-        // Update request status
-        await tx.registrationRequest.update({
+      // 1. Instantly update core tables in parallel
+      await Promise.all([
+        prisma.registrationRequest.update({
           where: { id: requestId },
           data: {
             status: 'APPROVED',
             reviewedAt: new Date(),
             reviewedBy: 'Super Admin',
           },
-        });
-
-        // Update tenant status
-        await tx.tenant.update({
+        }),
+        prisma.tenant.update({
           where: { id: reg.tenantId },
           data: { status: 'APPROVED' },
-        });
-
-        // Ensure business profile marks onboardingCompleted = true
-        await tx.businessProfile.updateMany({
+        }),
+        prisma.businessProfile.updateMany({
           where: { tenantId: reg.tenantId },
           data: { onboardingCompleted: true },
-        });
+        }),
+      ]);
 
-        // Ensure requested modules are enabled
-        if (Array.isArray(reg.intendedModules) && reg.intendedModules.length > 0) {
-          for (const mod of reg.intendedModules as string[]) {
-            const moduleToken = String(mod).toLowerCase();
-            await tx.tenantModule.upsert({
+      // 2. Ensure requested modules are enabled (parallel, non-blocking)
+      if (Array.isArray(reg.intendedModules) && reg.intendedModules.length > 0) {
+        await Promise.allSettled(
+          reg.intendedModules.map((mod: any) =>
+            prisma.tenantModule.upsert({
               where: {
                 tenantId_moduleToken: {
                   tenantId: reg.tenantId,
-                  moduleToken,
+                  moduleToken: String(mod).toLowerCase(),
                 },
               },
               update: { isEnabled: true },
               create: {
                 tenantId: reg.tenantId,
-                moduleToken,
+                moduleToken: String(mod).toLowerCase(),
                 isEnabled: true,
               },
-            });
-          }
-        }
+            })
+          )
+        );
+      }
 
-        // Provision seating tables if not already generated
-        const existingTablesCount = await tx.table.count({
+      // 3. Provision seating tables if not already generated
+      try {
+        const existingTablesCount = await prisma.table.count({
           where: { tenantId: reg.tenantId },
         });
 
         if (existingTablesCount === 0 && reg.tableCountEst && reg.tableCountEst > 0) {
-          const defaultSection = await tx.tableSection.create({
+          const defaultSection = await prisma.tableSection.create({
             data: {
               tenantId: reg.tenantId,
               name: 'Main Dining',
@@ -192,21 +186,25 @@ export async function POST(req: NextRequest) {
               sortOrder: i,
             });
           }
-          await tx.table.createMany({ data: tablesData });
+          await prisma.table.createMany({ data: tablesData });
         }
+      } catch (tblErr) {
+        console.warn('Non-fatal table provisioning error:', tblErr);
+      }
 
-        // Seed default starter subscription if none
-        const starterPlan = await tx.subscriptionPlan.findFirst({
+      // 4. Seed default starter subscription if none
+      try {
+        const starterPlan = await prisma.subscriptionPlan.findFirst({
           where: { name: 'STARTER' },
         });
 
         if (starterPlan) {
-          const existingSub = await tx.subscription.findFirst({
+          const existingSub = await prisma.subscription.findFirst({
             where: { tenantId: reg.tenantId },
           });
 
           if (!existingSub) {
-            await tx.subscription.create({
+            await prisma.subscription.create({
               data: {
                 tenantId: reg.tenantId,
                 planId: starterPlan.id,
@@ -217,10 +215,18 @@ export async function POST(req: NextRequest) {
             });
           }
         }
+      } catch (subErr) {
+        console.warn('Non-fatal subscription provisioning error:', subErr);
+      }
 
-        // Record audit log
+      // 5. Record audit log (non-blocking)
+      try {
+        const adminUser = await prisma.user.findFirst({
+          where: { roleType: 'SUPER_ADMIN' },
+        });
+        const validUserId = adminUser?.id || (await prisma.user.findFirst({ where: { tenantId: reg.tenantId } }))?.id;
         if (validUserId) {
-          await tx.auditLog.create({
+          await prisma.auditLog.create({
             data: {
               tenantId: reg.tenantId,
               userId: validUserId,
@@ -236,15 +242,19 @@ export async function POST(req: NextRequest) {
             },
           });
         }
-      });
+      } catch (auditErr) {
+        console.warn('Non-fatal audit log error:', auditErr);
+      }
 
       return NextResponse.json({
         success: true,
         message: `Restaurant "${reg.tenant.name}" has been approved. The owner can now complete onboarding.`,
+        tenantId: reg.tenantId,
+        requestId,
       });
     } else if (action === 'REJECT') {
-      await prisma.$transaction(async (tx) => {
-        await tx.registrationRequest.update({
+      await Promise.all([
+        prisma.registrationRequest.update({
           where: { id: requestId },
           data: {
             status: 'REJECTED',
@@ -252,20 +262,21 @@ export async function POST(req: NextRequest) {
             reviewedAt: new Date(),
             reviewedBy: 'Super Admin',
           },
-        });
-
-        await tx.tenant.update({
+        }),
+        prisma.tenant.update({
           where: { id: reg.tenantId },
           data: { status: 'REJECTED' },
-        });
+        }),
+      ]);
 
+      try {
         const adminUser = await prisma.user.findFirst({
           where: { roleType: 'SUPER_ADMIN' },
         });
         const validUserId = adminUser?.id || (await prisma.user.findFirst({ where: { tenantId: reg.tenantId } }))?.id;
 
         if (validUserId) {
-          await tx.auditLog.create({
+          await prisma.auditLog.create({
             data: {
               tenantId: reg.tenantId,
               userId: validUserId,
@@ -280,11 +291,15 @@ export async function POST(req: NextRequest) {
             },
           });
         }
-      });
+      } catch (auditErr) {
+        console.warn('Non-fatal audit log error:', auditErr);
+      }
 
       return NextResponse.json({
         success: true,
         message: `Registration request for "${reg.tenant.name}" has been rejected.`,
+        tenantId: reg.tenantId,
+        requestId,
       });
     }
 

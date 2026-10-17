@@ -20,7 +20,8 @@ export default function AdminRestaurantsPage() {
   const [search, setSearch] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const loadTenants = async () => {
+  const loadTenants = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await fetch('/api/admin/tenants');
       if (res.ok) {
@@ -30,17 +31,27 @@ export default function AdminRestaurantsPage() {
     } catch (err) {
       console.error('Failed to load tenants:', err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadTenants();
+    // Auto-poll every 3.5 seconds for real-time synchronization
+    const interval = setInterval(() => {
+      loadTenants(true);
+    }, 3500);
+    return () => clearInterval(interval);
   }, []);
 
   const handleToggleStatus = async (tenantId: string, currentStatus: string) => {
     const nextStatus = currentStatus === 'APPROVED' ? 'SUSPENDED' : 'APPROVED';
+    // 1. Instant optimistic update
+    setTenants((prev) =>
+      prev.map((t) => (t.id === tenantId ? { ...t, status: nextStatus } : t))
+    );
     setUpdatingId(tenantId);
+
     try {
       const res = await fetch('/api/admin/tenants', {
         method: 'PATCH',
@@ -48,9 +59,7 @@ export default function AdminRestaurantsPage() {
         body: JSON.stringify({ id: tenantId, status: nextStatus }),
       });
       if (res.ok) {
-        setTenants((prev) =>
-          prev.map((t) => (t.id === tenantId ? { ...t, status: nextStatus } : t))
-        );
+        loadTenants(true);
       }
     } catch (err) {
       console.error('Failed to toggle tenant status:', err);
